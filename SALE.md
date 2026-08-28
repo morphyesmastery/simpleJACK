@@ -29,7 +29,7 @@ and the machine is exactly as it was.
 
 | | Price | What you get |
 |---|---|---|
-| **SimpleJack — Personal** | **$20 CAD** | Full portable folder, personal use, forever updates on this major |
+| **SimpleJack — Personal** | **$20 USD** | Full portable folder, personal use, forever updates on this major |
 | **SimpleJack — Trades/Training license** | **Contact** | For one training site (school, shop, program) — up to 10 seats |
 | **SimpleJack — Site license** | **Contact** | Fleet deployments, custom skills, integration |
 

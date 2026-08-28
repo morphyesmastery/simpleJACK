@@ -123,7 +123,7 @@ WHAT'S IN THE FOLDER (reference)
   SKILLS/              100+ tools: browser, files, X scanner…
   runtime/             embedded Python — no install needed
   README.txt           this file
-  SALE.md              buy SimpleJack: personal $20 CAD,
+  SALE.md              buy SimpleJack: personal $20 USD,
                        site license on contact.
   SUPPORT.md           support the work (e-Transfer)
 

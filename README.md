@@ -6,7 +6,7 @@
 
 **A complete AI workstation in one folder. No install. No subscription. No phone-home.**
 
-[Buy — $20 CAD](SALE.md) · [Setup Guide](README.txt) · [Support the Work](SUPPORT.md)
+[Buy — $20 USD](SALE.md) · [Setup Guide](README.txt) · [Support the Work](SUPPORT.md)
 
 </div>
 
@@ -51,7 +51,7 @@ That's it. Your browser opens SimpleJack and you're talking to a fully-local AI.
 
 | | Price |
 |---|---|
-| **SimpleJack — Personal** | **$20 CAD, one time** |
+| **SimpleJack — Personal** | **$20 USD, one time** |
 | Trades/Training · Site licenses | [Contact](SUPPORT.md) |
 
 e-Transfer, no middlemen, no Stripe. → **[SALE.md](SALE.md)**
