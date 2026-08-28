@@ -29,8 +29,8 @@ and the machine is exactly as it was.
 
 | | Price | What you get |
 |---|---|---|
-| **SimpleJack — Personal** | **$149 CAD** | Full portable folder, personal use, forever updates on this major |
-| **SimpleJack — Trades/Training license** | **$499 CAD** | For one training site (school, shop, program) — up to 10 seats |
+| **SimpleJack — Personal** | **$20 CAD** | Full portable folder, personal use, forever updates on this major |
+| **SimpleJack — Trades/Training license** | **Contact** | For one training site (school, shop, program) — up to 10 seats |
 | **SimpleJack — Site license** | **Contact** | Fleet deployments, custom skills, integration |
 
 **No subscription. No activation server. No phone-home.** If we disappear, your copy
@@ -41,7 +41,7 @@ keeps working — that's the point.
 **e-Transfer** (Canada):
 
 > **trent@morphyesmastery.com**
-> Reference: "SimpleJack Personal" / "SimpleJack Training"
+> Reference: "SimpleJack $20"
 
 Include your email in the message. You'll receive the download link and your license
 folder the same day.

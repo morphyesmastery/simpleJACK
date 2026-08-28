@@ -503,6 +503,6 @@
     "content_rating": 4,
     "impose_content_rating": false,
     "gpu_util_max": 99,
-    "gpu_vram_max_mb": 8100
+    "gpu_vram_max_mb": 4300
   }
 }

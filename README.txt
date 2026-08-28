@@ -69,6 +69,6 @@ SUPPORT THE WORK / BUY SIMPLEJACK
 ====================================================
 If these tools earn their keep, back the work:
   SUPPORT.md  - why and how (e-Transfer, no middlemen)
-  SALE.md     - buy SimpleJack: personal $149 CAD,
-                trades/training $499 CAD, site license.
+  SALE.md     - buy SimpleJack: personal $20 CAD,
+                site license on contact.
 One purchase. One folder. No subscription. Forever.

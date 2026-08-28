@@ -109,25 +109,38 @@ def _ensure_keys_dir() -> None:
         pass
 
 def _hermes_yaml_blocks() -> dict:
+    """Parse Hermes config.yaml blocks at ANY nesting depth.
+
+    Hermes stores providers under `providers:` (children at indent 2, their
+    keys at indent 4). The old parser only read keys directly under a
+    top-level block, so nested provider api_keys were invisible -> cards
+    fired with no Authorization header -> upstream 401. Fix: track the
+    indent stack; when we hit `base_url`/`api_key` under a provider-looking
+    block, record it under the innermost provider name.
+    """
     blocks: dict = {}
     try:
         text = HERMES_YAML.read_text(encoding="utf-8", errors="ignore")
     except Exception:
         return blocks
-    cur: Optional[str] = None
+    stack: list = []  # (indent, name)
     for raw in text.splitlines():
         line = raw.rstrip()
         if not line or line.lstrip().startswith("#"):
             continue
-        m = re.match(r"^([A-Za-z0-9_.-]+):\s*$", line)
-        if m and line[:1] != " " and line[:1] != "\t":
-            cur = m.group(1)
-            blocks.setdefault(cur, {})
+        indent = len(line) - len(line.lstrip(" "))
+        # pop stack entries deeper-or-equal to this line's indent
+        while stack and stack[-1][0] >= indent:
+            stack.pop()
+        m = re.match(r"^([A-Za-z0-9_.-]+):\s*(?:#.*)?$", line.strip())
+        if m:
+            stack.append((indent, m.group(1)))
             continue
-        if cur and line.startswith(" "):
-            m2 = re.match(r"^\s+(base_url|api_key):\s*(.+)$", line)
-            if m2:
-                blocks[cur][m2.group(1)] = m2.group(2).strip().strip("'\"")
+        m2 = re.match(r"^(base_url|api_key):\s*(.+)$", line.strip())
+        if m2 and stack:
+            # attribute belongs to the innermost named block
+            owner = stack[-1][1]
+            blocks.setdefault(owner, {})[m2.group(1)] = m2.group(2).strip().strip("'\"")
     return blocks
 
 def resolve_key_src(provider: str):
