@@ -696,7 +696,7 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
 
     <label style="font-size:0.72rem;color:#9fb3c8;letter-spacing:1px;font-weight:700">2 · GET YOUR KEY</label>
     <button id="btnGetKey" onclick="openKeyPage()" style="width:100%;margin:6px 0 4px 0;padding:12px;border-radius:8px;border:none;background:var(--rust);color:#fff;font-size:0.92rem;font-family:var(--display);font-weight:800;cursor:pointer">GET ACCESS KEY →</button>
-    <div id="keyUrlHint" style="font-size:0.72rem;color:#9fb3c8;margin:4px 0 14px 0">Opens the provider's key page in your browser. Copy the key it gives you.</div>
+    <div id="keyUrlHint" style="font-size:0.72rem;color:#9fb3c8;margin:4px 0 14px 0">Opens the provider's sign-in page. Use "Continue with Google" or email. After signing in, follow the steps shown here to create and copy your free key.</div>
 
     <label style="font-size:0.72rem;color:#9fb3c8;letter-spacing:1px;font-weight:700">3 · PASTE KEY</label>
     <input type="password" id="setupKey" placeholder="sk-… paste your key here" style="width:100%;margin:6px 0 14px 0;padding:10px 12px;border-radius:8px;border:1px solid var(--rust);background:#0a1a2e;color:var(--fg);font-size:0.88rem;font-family:var(--mono)" />
@@ -1470,15 +1470,22 @@ function checkSetupStatus() {
 
 function openKeyPage() {
   const provider = document.getElementById('setupProvider').value;
-  const urls = {
-    openrouter: 'https://openrouter.ai/settings/keys',
-    nvidia: 'https://build.nvidia.com',
-    zai: 'https://chat.z.ai/login',
-    zenmux: 'https://zenmux.ai/settings',
-    github_models: 'https://github.com/settings/tokens/new?scopes=read:user'
-  };
+    const urls = {
+      openrouter: 'https://openrouter.ai/signin',
+      nvidia: 'https://build.nvidia.com/login',
+      zai: 'https://chat.z.ai/login',
+      zenmux: 'https://zenmux.ai/signin',
+      github_models: 'https://github.com/signup'
+    };
+    const nextStep = {
+      openrouter: '1) Sign in with Google or email  2) click "Keys"  3) Create Key  4) copy it',
+      nvidia: '1) Sign in / create NVIDIA account  2) confirm email  3) generate API key',
+      zai: '1) Sign in with Google or email  2) open Settings → API  3) create key',
+      zenmux: '1) Sign in with Google or email  2) open Settings → API Keys  3) create key',
+      github_models: '1) Create free account  2) Settings → Developer settings → Tokens  3) generate token (read:user)'
+    };
   const hint = document.getElementById('keyUrlHint');
-  hint.innerText = 'Opening ' + urls[provider] + ' in your browser…';
+  hint.innerText = 'Opening ' + urls[provider] + ' — then: ' + (nextStep[provider] || '');
   window.open(urls[provider], '_blank');
 }
 
