@@ -101,6 +101,17 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
 .status-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
 .status-pill.down { background: rgba(220,38,38,0.15); border: 1px solid rgba(220,38,38,0.4); color: var(--red); animation: flash 1s infinite; }
 .status-pill.down .dot { background: var(--red); }
+/* VOICE PILL (Trent 2026-08-27) — green=ON red=OFF, click to flip */
+.voice-pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 12px; border-radius: 999px; cursor: pointer;
+  background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.2);
+  font-size: 0.7rem; color: var(--green); font-family: var(--display);
+  letter-spacing: 0.04em; user-select: none;
+}
+.voice-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+.voice-pill.off { background: rgba(220,38,38,0.15); border: 1px solid rgba(220,38,38,0.4); color: var(--red); }
+.voice-pill.off .dot { background: var(--red); animation: none; }
 @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.4 } }
 @keyframes flash { 0%,100% { opacity:1 } 50% { opacity:0.5 } }
 
@@ -647,6 +658,10 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
     <div class="dot"></div>
     <span id="statusText">AILA</span>
   </div>
+  <button id="voicePill" type="button" class="voice-pill" onclick="toggleVoice()" title="Voice switch: folder + mouth together">
+    <div class="dot"></div>
+    <span id="voiceText">VOICE OFF</span>
+  </button>
   <input type="text" id="chatSearch" placeholder="Search chat..." style="flex:0 1 180px;padding:4px 10px;border-radius:6px;border:1px solid var(--rust);background:rgba(10,26,46,0.6);color:var(--fg);font-size:0.68rem;font-family:var(--display);outline:none" oninput="searchChat(this.value)" />
   <button class="ghost" style="padding:4px 10px;border-radius:6px;border:1px solid var(--rust);background:rgba(10,26,46,0.6);color:var(--rust);font-size:0.68rem;font-family:var(--display);cursor:pointer;font-weight:700" onclick="scrollChatBottom()" title="Scroll to bottom">&#8595;</button>
   <button class="ghost" style="padding:4px 10px;border-radius:6px;border:1px solid var(--rust);background:rgba(10,26,46,0.6);color:var(--rust);font-size:0.68rem;font-family:var(--display);cursor:pointer;font-weight:700" onclick="refreshAll()">&#8635;</button>
@@ -1042,6 +1057,8 @@ let _rsvpPhase = 'reasoning'; // 'reasoning' | 'response' | 'done'
 let _rsvpNarrationSent = 0; // chars of narration already sent
 let _rsvpBubbleEl = null;  // reference to the bubble DOM element containing RSVP
 let _rsvpReplyData = null; // stores {replyText, toolsUsed, model, turns} for final bubble
+let _rsvpReplyPending = false; // QUEUE-DRAIN LAW: reply staged (DONE showing), words not queued yet
+let _rsvpReplyQueued = false;  // QUEUE-DRAIN LAW: reply words queued and rendering
 
 // Scroll chat log to bottom — called after RSVP renders
 function _rsvpScrollLog() {
@@ -1124,6 +1141,11 @@ function rsvpStart(reasoningText) {
     });
   });
 
+  // STALE-TIMER FIX (Trent 2026-08-28): when the ticker stopped on an empty
+  // queue (burst pause), _rsvpTimer still holds the DEAD timer's ID — the
+  // "if (!_rsvpTimer)" check below skipped the restart and every later burst
+  // was mute (4-word bug). A dead ticker MUST read as null; the exits in
+  // _rsvpNext now null it. Keep the guard, restart on new words.
   if (!_rsvpTimer) _rsvpNext();
 }
 
@@ -1133,18 +1155,36 @@ function rsvpStart(reasoningText) {
 // 3. When RSVP finishes, REPLACE the RSVP bubble with a normal AILA bubble
 // Narration is handled by Python backend — no double-narrate.
 function rsvpShowReply(replyText, toolsUsed, model, turns) {
-  _rsvpPhase = 'response';
+  // NOTE: phase stays 'reasoning' while reasoning words are still queued —
+  // _rsvpQueueReplyWords() flips it to 'response' when it actually starts
+  // rendering the reply. Flipping here would bypass the QUEUE-DRAIN LAW.
   _rsvpReplyData = { replyText, toolsUsed, model, turns };
   _rsvpFullResponse = replyText + (toolsUsed && toolsUsed.length ? '\n\nTools: ' + toolsUsed.map(t => t.name).join(', ') : '');
   const display = _rsvpEl('Display');
   if (!display) { _rsvpPhase = 'done'; return; }
 
-  // Stop reasoning polling if still running
+  // Stop reasoning polling if still running (buffer is final now)
   if (_rsvpPollId) { clearInterval(_rsvpPollId); _rsvpPollId = null; }
-  // Stop any existing timer
-  if (_rsvpTimer) { clearTimeout(_rsvpTimer); _rsvpTimer = null; }
-  _rsvpWordQueue = [];
-  _rsvpWordCount = 0;
+
+  // ── QUEUE-DRAIN LAW (Trent 2026-08-28): EVERY reasoning word goes
+  // through the RSVP before the reply. Fast local cards finish thinking
+  // in 1-2s; the reply used to land here while ~100 words were still
+  // queued, and the old code threw the queue away (4-word bug). Now the
+  // reply WAITS: ticker keeps ticking the queued reasoning words, and
+  // when the queue drains naturally, _rsvpNext calls us back with the
+  // phase still 'reasoning' — only then do we show DONE + reply.
+  if (_rsvpWordQueue.length > 0) {
+    // Reasoning words still queued — reply WAITS for them.
+    return;
+  }
+  _rsvpQueueReplyWords();
+}
+
+function _rsvpQueueReplyWords() {
+  if (_rsvpReplyPending || _rsvpReplyQueued) return;
+  const display = _rsvpEl('Display');
+  if (!display) { _rsvpPhase = 'done'; return; }
+  _rsvpReplyPending = true;
   _rsvpActive = true;
   _rsvpPaused = false;
 
@@ -1170,6 +1210,8 @@ function rsvpShowReply(replyText, toolsUsed, model, turns) {
 
     // Clear "DONE" and start RSVP rendering
     display.innerHTML = '';
+    _rsvpReplyPending = false;
+    _rsvpReplyQueued = true;
     _rsvpNext();
   }, 600);
 }
@@ -1275,23 +1317,41 @@ function _rsvpShowWord(token) {
 
 // Core timer loop — respects per-word delay multipliers
 function _rsvpNext() {
+  // QUEUE-DRAIN LAW: reasoning queue drained naturally but a reply is
+  // waiting (fast card answered while reasoning words were mid-queue).
+  // Hand control to the reply renderer NOW — every reasoning word has
+  // been shown; DONE + reply words follow immediately.
+  if (_rsvpPhase === 'reasoning' && _rsvpReplyData && !_rsvpReplyPending && !_rsvpReplyQueued && _rsvpWordQueue.length === 0) {
+    _rsvpTimer = null;  // STALE-TIMER FIX: release ID so the next burst can restart the ticker
+    _rsvpPhase = 'response';
+    _rsvpQueueReplyWords();
+    return;
+  }
   if (!_rsvpActive || _rsvpPaused || _rsvpWordQueue.length === 0) {
     // Queue is empty — if we were rendering the response, replace RSVP bubble with normal bubble
     if (_rsvpPhase === 'response' && _rsvpWordQueue.length === 0) {
+      _rsvpTimer = null;  // STALE-TIMER FIX: release ID so a new burst can restart the ticker
       _rsvpPhase = 'done';
       _rsvpActive = false;
       // Replace the RSVP bubble with a clean normal AILA bubble
       _rsvpFinalizeBubble();
     }
+    _rsvpTimer = null;  // STALE-TIMER FIX (main exit): queue empty in reasoning phase —
+                        // release the dead timer ID or the next reasoning burst can
+                        // never restart the ticker (the 4-word bug).
     return;
   }
   const wpmEl = _rsvpEl('WpmBubble');
   const wpm = parseInt(wpmEl ? wpmEl.value : 600) || 600;
-  const baseDelay = 60000 / wpm;
   const token = _rsvpWordQueue.shift();
   _rsvpShowWord(token);
+  // CATCH-UP LAW (Trent 2026-08-28): when the reply is waiting on the drain,
+  // finishing the reasoning words at reading speed wastes minutes. Drain at
+  // min(wpm, 1200) during the handoff — every word still displays, in seconds.
+  const drainWpm = (_rsvpReplyPending || _rsvpReplyQueued) ? Math.min(wpm, 1200) : wpm;
+  const drainDelay = 60000 / drainWpm;
   // Floor: never faster than 60ms so each word is perceivable
-  const delay = Math.max(60, Math.round(baseDelay * (token.delay_multiplier || 1.0)));
+  const delay = Math.max(60, Math.round(drainDelay * (token.delay_multiplier || 1.0)));
   _rsvpTimer = setTimeout(() => _rsvpNext(), delay);
 }
 
@@ -1310,6 +1370,9 @@ function rsvpBeginStream(requestId) {
   _rsvpFullResponse = '';
   _rsvpPhase = 'reasoning';
   _rsvpNarrationSent = 0;
+  _rsvpReplyPending = false;  // QUEUE-DRAIN LAW: no stale reply handoff
+  _rsvpReplyQueued = false;   // from a previous turn
+  _rsvpReplyData = null;
   _rsvpPollId = setInterval(() => {
     fetch(API + '/api/reasoning/' + requestId)
       .then(r => r.json())
@@ -1536,6 +1599,41 @@ function refreshAll() {
     setTimeout(loadModels, 4000);
   })
   .catch(() => {});
+}
+
+// ── VOICE PILL (Trent 2026-08-27) — green=ON red=OFF, folder + mouth ──
+function refreshVoicePill() {
+  const pill = document.getElementById('voicePill');
+  const text = document.getElementById('voiceText');
+  if (!pill || !text) return;
+  fetch(API + '/api/voice')
+    .then(r => r.json())
+    .then(d => {
+      if (d.voice_on) {
+        pill.classList.remove('off');
+        text.innerText = 'VOICE ON';
+      } else {
+        pill.classList.add('off');
+        text.innerText = 'VOICE OFF';
+      }
+    })
+    .catch(() => {
+      pill.classList.add('off');
+      text.innerText = 'VOICE OFF';
+    });
+}
+
+function toggleVoice() {
+  const pill = document.getElementById('voicePill');
+  const text = document.getElementById('voiceText');
+  if (pill) { pill.disabled = true; pill.style.opacity = 0.6; }
+  fetch(API + '/api/voice', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ action: 'toggle' })
+  })
+  .then(r => r.json())
+  .then(() => { if (pill) { pill.disabled = false; pill.style.opacity = 1; } refreshVoicePill(); })
+  .catch(() => { if (pill) { pill.disabled = false; pill.style.opacity = 1; } refreshVoicePill(); });
 }
 
 // ── SCROLL TO BOTTOM BUTTON ──
@@ -1952,6 +2050,7 @@ loadModels();
 refreshStack();
 checkSetupStatus();  // first-run gate — shows overlay if nothing configured
 loadHistory();
+refreshVoicePill();
 setInterval(checkAILAHealth, 10000);
 setInterval(loadModels, 30000);
 setInterval(refreshStack, 3000);

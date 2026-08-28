@@ -63,3 +63,12 @@ Zero hidden processes. Zero background phoning home.
 
 WE WORK HERE.
 - MorPHYes Mastery, Alberta
+
+====================================================
+SUPPORT THE WORK / BUY SIMPLEJACK
+====================================================
+If these tools earn their keep, back the work:
+  SUPPORT.md  - why and how (e-Transfer, no middlemen)
+  SALE.md     - buy SimpleJack: personal $149 CAD,
+                trades/training $499 CAD, site license.
+One purchase. One folder. No subscription. Forever.

@@ -370,6 +370,126 @@ def narrate(text):
         tmp.replace(final)  # atomic on Windows + Linux
         time.sleep(0.05)
 
+
+# ════════════════════════════════════════════════════════════
+#  VOICE PILL (Trent 2026-08-27, turn 2) — the folder is the
+#  switch AND the button tends the mouth. Green = ON, red = OFF.
+#  ON:  make the queue folder (the switch) + spawn morPHYtrek.py
+#       in a visible window, recording its PID.
+#  OFF: delete the folder + stop ONLY that mouth PID (tree).
+#  Never touches any other python. Never kills what it did not start.
+# ════════════════════════════════════════════════════════════
+_MOUTH_PIDFILE = SIMPLEJACK_ROOT / "morphytrek_data" / "mouth.pid"
+
+
+def _bundle_python():
+    """Portable python discovery — same order the launcher uses."""
+    cand = SIMPLEJACK_ROOT / "runtime" / "python.exe"
+    if cand.exists():
+        return str(cand)
+    cand = SIMPLEJACK_ROOT / "python.exe"
+    if cand.exists():
+        return str(cand)
+    return sys.executable
+
+
+def _mouth_pid():
+    """Return the mouth's live PID, or None. Pidfile first, then a
+    commandline scan so a bat-started mouth is still found."""
+    pid = None
+    try:
+        if _MOUTH_PIDFILE.exists():
+            pid = int(_MOUTH_PIDFILE.read_text(encoding="utf-8").strip())
+    except Exception:
+        pid = None
+    if pid:
+        try:
+            import ctypes
+            k32 = ctypes.windll.kernel32
+            h = k32.OpenProcess(0x1000, False, pid)
+            if h:
+                code = ctypes.c_ulong()
+                alive = k32.GetExitCodeProcess(h, ctypes.byref(code))
+                k32.CloseHandle(h)
+                if alive and code.value == 259:
+                    return pid
+        except Exception:
+            pass
+    # fallback: find a python running morPHYtrek.py under this bundle
+    try:
+        out = subprocess.run(
+            ["wmic", "process", "where", "name='python.exe'", "get",
+             "processid,commandline", "/format:csv"],
+            capture_output=True, text=True, timeout=10
+        ).stdout
+        root = str(SIMPLEJACK_ROOT)
+        for line in out.splitlines():
+            if "morPHYtrek.py" in line and root in line:
+                cols = [c.strip() for c in line.strip().split(",")]
+                if cols and cols[-1].isdigit():
+                    return int(cols[-1])
+    except Exception:
+        pass
+    return None
+
+
+def _voice_state():
+    """Green/red truth: the switch (queue folder) exists."""
+    return (_PORTABLE_QUEUE.exists(), _mouth_pid())
+
+
+def voice_on():
+    """Make the folder (switch ON) and spawn the mouth if it is not alive."""
+    try:
+        _PORTABLE_QUEUE.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        log(f"voice_on: mkdir failed {e}")
+    if _mouth_pid():
+        return True  # already speaking
+    try:
+        CREATE_NEW_CONSOLE = 0x00000010
+        p = subprocess.Popen(
+            ["cmd.exe", "/k", f'"{_bundle_python()}" "{SIMPLEJACK_ROOT / "morPHYtrek.py"}"'],
+            creationflags=CREATE_NEW_CONSOLE,
+            cwd=str(SIMPLEJACK_ROOT),
+        )
+        _MOUTH_PIDFILE.parent.mkdir(parents=True, exist_ok=True)
+        _MOUTH_PIDFILE.write_text(str(p.pid), encoding="utf-8")
+        log(f"voice_on: spawned morPHYtrek pid {p.pid}")
+        return True
+    except Exception as e:
+        log(f"voice_on: spawn failed {e}")
+        return False
+
+
+def voice_off():
+    """Delete the folder (switch OFF) and stop ONLY the mouth PID tree."""
+    pid = _mouth_pid()
+    if pid:
+        try:
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(pid)],
+                capture_output=True, text=True, timeout=10
+            )
+            log(f"voice_off: stopped mouth pid {pid}")
+        except Exception as e:
+            log(f"voice_off: taskkill failed {e}")
+    try:
+        if _MOUTH_PIDFILE.exists():
+            _MOUTH_PIDFILE.unlink()
+    except Exception:
+        pass
+    # The switch itself: remove the queue folder (and keep going on failure —
+    # the folder is the switch; deleting it is the off-state).
+    try:
+        import shutil
+        if _PORTABLE_QUEUE.exists():
+            shutil.rmtree(_PORTABLE_QUEUE, ignore_errors=True)
+    except Exception as e:
+        log(f"voice_off: rmtree failed {e}")
+    return True
+
+
 # ════════════════════════════════════════════════════════════
 #  INSTRUCTION SET — AGENTS.md + I_AM.txt (canonical)
 #  Not "the soul" — the instruction set. The chat persona.
@@ -807,6 +927,26 @@ def tool_web_search(query):
     except Exception as e:
         return f"Search error: {e}"
 
+def tool_browse(url):
+    """Action 6b: browse a URL in the EXISTING logged-in Chrome session via CDP (cookie_monster).
+    Rides Trent's Chrome on port 9222 — reuses his cookies/session, opens a tab, reads page text.
+    Use for ANY authenticated page (X bookmarks, logged-in dashboards, private content) that
+    fetch_url cannot reach. Returns the page text."""
+    url = url.strip().strip('"').strip("'")
+    if not url:
+        return "Error: empty URL"
+    try:
+        import sys
+        sys.path.insert(0, str(SIMPLEJACK_ROOT / "SKILLS"))
+        from cookie_monster import CookieMonster
+        cm = CookieMonster()
+        text = cm.visit(url, read=True)
+        if text:
+            return f"--- Page Content ({len(text)} chars) ---\n{text[:3000]}" + (f"\n... ({len(text) - 3000} more chars)" if len(text) > 3000 else "")
+        return "No content extracted. CDP may be unreachable or the page returned nothing."
+    except Exception as e:
+        return f"Browse error: {e}"
+
 def tool_run_command(command):
     """Action 7: run a shell command and return stdout. Use for system tasks."""
     command = command.strip().strip('"').strip("'")
@@ -893,6 +1033,7 @@ TOOLS = {
     "write_file":    tool_write_file,
     "fetch_url":     tool_fetch_url,
     "web_search":    tool_web_search,
+    "browse":        tool_browse,
     "run_command":   tool_run_command,
     "stack_go":      tool_stack_go,
     "stack_pause":   tool_stack_pause,
@@ -1027,6 +1168,20 @@ TOOL_DEFINITIONS = [
                     "query": {"type": "string", "description": "The search query"}
                 },
                 "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "browse",
+            "description": "Browse a URL in the EXISTING logged-in Chrome session via CDP (cookie_monster). Rides Trent's Chrome on port 9222, reuses his cookies/session, opens a tab, reads page text. Use for ANY authenticated page (X bookmarks, logged-in dashboards, private content) that fetch_url cannot reach. Returns the page text.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string", "description": "The URL to browse in the logged-in Chrome session"}
+                },
+                "required": ["url"]
             }
         }
     },
@@ -1216,7 +1371,7 @@ If you need to look something up on the web, fetch it. "Go look for the answer a
 is not a skill at MorPHYes Mastery — it is the baseline. If it doesn't come naturally, you don't exist here.
 
 ## SIMPLEJACK OPERATING RULE
-You do five things, and only these:
+You do six things, and only these:
 1. CHAT — answer, explain, think with Trent. No tool needed. Most turns are this.
 2. STACK A COMMAND — when Trent wants something DONE, CALL the queue_command tool.
    Copy the canonical line verbatim from the LEGEND, swap the <placeholders>,
@@ -1225,6 +1380,9 @@ You do five things, and only these:
 3. GO LOOK — call read_file to inspect a file when Trent asks.
 4. WRITE A FILE — call write_file to CREATE or OVERWRITE. Never use queue_command for writing.
 5. RUN THE STACK — call stack_go to start, stack_pause to pause.
+6. BROWSE — call the browse tool to open a URL in Trent's logged-in Chrome session (CDP 9222)
+   and read the page text. Use for authenticated pages (X bookmarks, dashboards) that fetch_url
+   cannot reach. This is your browser hands — you are NOT limited to the command stack.
 
 RULE: If Trent is just talking to you, talk back. Do NOT call a tool.
 A conversation is not a task. A question is not a task.
@@ -1241,6 +1399,7 @@ When Trent pastes a URL in chat and says nothing else: he wants you to fetch it.
 When Trent says "chrome" or "browser": that means open a URL in Chrome. Use run_command to launch chrome with the URL.
 When Trent says "spider" or "scrape": use fetch_url first. If blocked, try web_search for the content.
 When Trent says "tweet" or "twitter" or "x.com": use web_search with "site:x.com <query>" as fallback, or fetch_url on a nitter mirror.
+When Trent says "my bookmarks" or "X bookmarks" or "bookmarks": use the browse tool to open x.com/i/bookmarks in his logged-in Chrome session (CDP 9222) and read the page text. That is the DSV harness — your browser hands.
 When you don't know what to do: re-read Trent's last message. He told you. Do exactly that.
 NEVER ask "what would you like me to do?" — he told you. Act.
 
@@ -1782,6 +1941,25 @@ def agent_loop(user_message, session_id="default", request_id=None, model_overri
         text = msg.get("content", "").strip()
         reasoning_so_far = _reasoning_buffer.get(request_id, "") if request_id else ""
 
+        # ── RSVP MIMICRY GUARD (Trent 2026-08-28) ──────────────────
+        # Some cloud cards mimic the rolling-context history format and
+        # bake their thinking INTO content as
+        # "[Reasoning trace from that turn]\n...\n[/Reasoning]\n<reply>".
+        # That preamble belongs in the RSVP reasoning dropdown, not the
+        # bubble. Split it: marker block → reasoning, rest → clean reply.
+        if text.startswith("[Reasoning trace from that turn]"):
+            _end = text.find("[/Reasoning]")
+            if _end != -1:
+                _baked = text[len("[Reasoning trace from that turn]"):_end].strip()
+                _clean = text[_end + len("[/Reasoning]"):].strip()
+                if _clean:
+                    if _baked:
+                        reasoning_so_far = (reasoning_so_far + "\n" + _baked).strip() if reasoning_so_far else _baked
+                        if request_id:
+                            _reasoning_buffer[request_id] = reasoning_so_far
+                    text = _clean
+                    log(f"  RSVP mimicry guard: moved {len(_baked)} chars of baked-in reasoning to RSVP dropdown")
+
         # BUG FIX: If reasoning_content was produced but content is empty,
         # the model "thought" but didn't answer. Don't loop forever — break out
         # and return the reasoning text as the reply so the user gets value.
@@ -1924,6 +2102,16 @@ class SimpleJackHandler(BaseHTTPRequestHandler):
                 "configured": {"model_hub": hub_up},
                 "hub": {"up": hub_up, "models": hub_models},
                 "can_chat": hub_up and hub_models > 0,
+            })
+            return
+
+        # VOICE PILL state — is the switch on? Is the mouth alive?
+        if path == "/api/voice":
+            folder_on, mouth_pid = _voice_state()
+            self._send_json({
+                "ok": True,
+                "voice_on": folder_on,
+                "mouth_pid": mouth_pid,
             })
             return
 
@@ -2269,6 +2457,26 @@ class SimpleJackHandler(BaseHTTPRequestHandler):
                         return
             # Folder missing OR empty text → silent no-op, never an error page.
             self._send_json({"ok": True, "written": False})
+            return
+
+        # VOICE PILL toggle — one click flips the folder switch + the mouth.
+        # Body: {"action": "on"|"off"|"toggle"}. Missing = "toggle".
+        if path == "/api/voice":
+            body = self._read_body()
+            action = (body.get("action") or "toggle").strip().lower()
+            folder_on, mouth_pid = _voice_state()
+            if action == "on":
+                ok = voice_on()
+            elif action == "off":
+                ok = voice_off()
+            else:  # toggle
+                ok = voice_off() if folder_on else voice_on()
+            folder_on, mouth_pid = _voice_state()
+            self._send_json({
+                "ok": ok,
+                "voice_on": folder_on,
+                "mouth_pid": mouth_pid,
+            })
             return
 
         # WIPE TRANSCRIPT - the nuclear button, double-click.

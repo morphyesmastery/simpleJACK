@@ -736,13 +736,13 @@ def stack_status_symbols():
     ol_busy = _ollama_busy()
     out = []
 
-    sj_up = _port_up(8791)
+    sj_up = _port_up(8797)
     out.append(("\u25c6", "SimpleJack", "#7ac043" if sj_up else "#555555"))
 
     hub_up = _port_up(8123)
     out.append(("\u2b24", "ModelHub", "#7ac043" if hub_up else "#555555"))
 
-    rtr_up = _port_up(8000)
+    rtr_up = _port_up(8123)
     out.append(("\u2301", "Router", "#7ac043" if rtr_up else "#555555"))
 
     out.append(("\U0001F3A7", "morPHYtrek", "#7ac043"))  # we ARE it

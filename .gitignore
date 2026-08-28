@@ -61,3 +61,8 @@ dist/
 # =====================  OS  =====================
 Thumbs.db
 Desktop.ini
+
+# =====================  PRIVATE / LOCAL-ONLY  =====================
+.hermes/
+cdp_bookmarks*.ps1
+tooltest.txt

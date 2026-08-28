@@ -60,8 +60,14 @@ echo   [1/5] HUB engine up on 8123.
 
 :: ================= STEP 2: DISPATCH =================
 :step2
-tasklist /FI "WINDOWTITLE eq DISPATCH - stack runner*" 2>nul | findstr /I "cmd.exe" >nul
+:: Dispatch liveness: pid file + tasklist check (title match is unreliable)
+set "DISP_UP=1"
+if not exist "%ROOT%\dispatch\dispatch.pid" set "DISP_UP=0"
+if "%DISP_UP%"=="0" goto disp_down
+set /p DISP_PID=<"%ROOT%\dispatch\dispatch.pid"
+tasklist /FI "PID eq %DISP_PID%" 2>nul | findstr /I "python" >nul
 if not errorlevel 1 goto disp_up
+:disp_down
 echo   [2/5] DISPATCH down - starting stack runner ...
 start "DISPATCH - stack runner" "%PY%" "%ROOT%\dispatch\dispatch.py"
 goto disp_wait
