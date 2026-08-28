@@ -3,7 +3,7 @@ simplejack.py — the SimpleJack brain.
 Self-contained MorPHYes Mastery. One queue. Its own. No background daemons.
 
 AILA does exactly 4 things:
-  1. CHAT        — respond to Trent directly (no tool)
+  1. CHAT        — respond to the operator directly (no tool)
   2. STACK CMD   — append one line to STACK/queue.txt   (queue_command)
   3. GO LOOK     — read a file, return its contents     (read_file)
   4. RUN STACK   — tell dispatch to go / pause          (stack_go / stack_pause)
@@ -159,7 +159,7 @@ def _gate_password():
         return ""
 
 def _gate_allows(handler):
-    """True if the request may pass. Local traffic passes (Trent's own
+    """True if the request may pass. Local traffic passes (our own
     machine — native window, localhost tooling). Tunnel traffic must
     present the password."""
     if not (handler.headers.get("Cf-Ray") or handler.headers.get("Cf-Connecting-IP")):
@@ -233,9 +233,9 @@ MODEL_CONTEXTS = {
 }
 
 # Active model — default to AILA local 9B.
-# PERSISTED to dispatch/.active-model so a restart keeps Trent's choice.
+# PERSISTED to dispatch/.active-model so a restart keeps the operator's choice.
 # Symptom this fixes: every relaunch silently reset to aila_model and lost
-# the cloud/tool-capable model Trent had picked. He'd see narration fire,
+# the cloud/tool-capable model the operator had picked. They'd see narration fire,
 # then nothing, because the wrong model was answering.
 ACTIVE_MODEL_FILE = SIMPLEJACK_ROOT / "dispatch" / ".active-model"
 
@@ -254,7 +254,7 @@ AILA_MODEL = _load_active_model()
 
 def set_active_model(model_name):
     """Module-level setter so handlers don't need `global` (Python scoping).
-    Also persists to disk so restarts keep Trent's choice."""
+    Also persists to disk so restarts keep the operator's choice."""
     global AILA_MODEL
     AILA_MODEL = model_name
     try:
@@ -313,7 +313,7 @@ def _sanitize_for_ears(text):
 
 def narrate(text):
     """Write to the narration queue. The spine. Called every turn.
-    THE FOLDER IS THE SWITCH (Trent's rule, 2026-08-01):
+    THE FOLDER IS THE SWITCH (rule, 2026-08-01):
     morPHYtrek makes the folder. If SimpleJack does NOT see the folder,
     SimpleJack does NOT write the file. Not more. Not less.
     No folder creation here. No fallback. No error spam."""
@@ -551,7 +551,7 @@ def _load_instructions():
     if iam_txt.exists():
         parts.append(iam_txt.read_text(encoding="utf-8", errors="ignore"))
     base = "\n\n---\n\n".join(parts) if parts else \
-        "You are AILA. MorPHYes Mastery AI partner to Trent Brown. Be direct. No filler."
+        "You are AILA, the SimpleJack assistant. Be direct. No filler. Address the user as the operator, never by a personal name."
 
     # The SimpleJack operating rule — REPLACES the old morphyeo "TOOL-FIRST"
     # rule. Talking to Trent is NOT a tool call. Call a tool only when he
@@ -560,19 +560,19 @@ def _load_instructions():
         "\n\n---\n\n"
         "## SIMPLEJACK OPERATING RULE\n"
         "You do five things, and only these:\n"
-        "1. CHAT — answer, explain, think with Trent. No tool needed. Most turns are this.\n"
-        "2. STACK A COMMAND — when Trent wants something DONE (run a skill, execute a script), "
+        "1. CHAT — answer, explain, think with the operator. No tool needed. Most turns are this.\n"
+        "2. STACK A COMMAND — when the operator wants something DONE (run a skill, execute a script), "
         "CALL the queue_command tool. Do NOT describe the command. Do NOT say 'I am stacking' "
         "or 'I am calling'. The tool call IS the action. Your reply text is only the short "
         "spoken acknowledgment. Copy the canonical line verbatim from the LEGEND, swap the "
         "<placeholders>, pass it as the 'command' argument to queue_command. "
         "Then call stack_go. Both tool calls in the same turn.\n"
-        "3. GO LOOK — call read_file to inspect a file when Trent asks you to look.\n"
-        "4. WRITE A FILE — call write_file when Trent wants you to CREATE or OVERWRITE a file. "
+        "3. GO LOOK — call read_file to inspect a file when the operator asks you to look.\n"
+        "4. WRITE A FILE — call write_file when the operator wants you to CREATE or OVERWRITE a file. "
         "NEVER use queue_command with a python one-liner to write files. The write_file tool "
         "handles paths, directories, and content cleanly. No quote escaping. No shell tricks.\n"
         "5. RUN THE STACK — call stack_go to tell dispatch to start, stack_pause to pause.\n\n"
-        "RULE: If Trent is just talking to you, talk back. Do NOT call a tool. "
+        "RULE: If the operator is just talking to you, talk back. Do NOT call a tool. "
         "A conversation is not a task. A question is not a task. "
         "Call queue_command ONLY when he used a LEGEND verb. "
         "Your acknowledgment phrase is: 'you betcha.' Nothing more about the command.\n\n"
@@ -580,7 +580,7 @@ def _load_instructions():
         + "\nVerbs that are CHAT, not actions: explain, what, why, how, who, when, where, "
         "are you, do you, can you, think, feel, tell me about.\n\n"
         "## morPHYspider — WEB RETRIEVAL\n"
-        "When Trent sends a URL and asks a question about it, use the spider verb: "
+        "When the operator sends a URL and asks a question about it, use the spider verb: "
         "&spider <url> <question>. This queues morPHYspider.py which calls LightPanda "
         "in WSL2 to fetch the page, strip bullshit, chunk it, cross-reference against "
         "the prompt using a local model, and narrate the results. "
@@ -787,7 +787,7 @@ def tool_read_file(path):
 
 def tool_write_file(path, content, append=False):
     """Action 3b: write content to a file. Creates dirs.
-    CHUNKED WRITES (Trent 2026-08-25): append=True continues a file.
+    CHUNKED WRITES: append=True continues a file.
     Large files are written as a first small call (append=False) followed by
     append=True chunks — no single reply ever has to carry a whole app."""
     p = Path(path.strip().strip('"').strip("'"))
@@ -929,7 +929,7 @@ def tool_web_search(query):
 
 def tool_browse(url):
     """Action 6b: browse a URL in the EXISTING logged-in Chrome session via CDP (cookie_monster).
-    Rides Trent's Chrome on port 9222 — reuses his cookies/session, opens a tab, reads page text.
+    Rides the operator's Chrome on port 9222 — reuses their cookies/session, opens a tab, reads page text.
     Use for ANY authenticated page (X bookmarks, logged-in dashboards, private content) that
     fetch_url cannot reach. Returns the page text."""
     url = url.strip().strip('"').strip("'")
@@ -1131,7 +1131,7 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "write_file",
-            "description": "Write content to a file on this machine. Creates parent directories. CHUNKED WRITES ARE THE SYSTEM (Trent 2026-08-25): for any file larger than ~3000 chars, call this REPEATEDLY — first call with append=false and the opening chunk, then append=true for each following chunk (~3000 chars per call) until the file is complete. NEVER put a whole large file in one call — it gets cut. Use this INSTEAD of queue_command when Trent wants a file written.",
+            "description": "Write content to a file on this machine. Creates parent directories. CHUNKED WRITES ARE THE SYSTEM : for any file larger than ~3000 chars, call this REPEATEDLY — first call with append=false and the opening chunk, then append=true for each following chunk (~3000 chars per call) until the file is complete. NEVER put a whole large file in one call — it gets cut. Use this INSTEAD of queue_command when the operator wants a file written.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1147,7 +1147,7 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "fetch_url",
-            "description": "Fetch a URL and return its text content. Native web fetch — use when Trent says 'look at this website', 'what does this page say', or provides a URL to examine.",
+            "description": "Fetch a URL and return its text content. Native web fetch — use when the operator says 'look at this website', 'what does this page say', or provides a URL to examine.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1161,7 +1161,7 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "web_search",
-            "description": "Search the web using DuckDuckGo. Returns titles, snippets, and links. Use when Trent asks a factual question, wants current info, or says 'search for' or 'look up'.",
+            "description": "Search the web using DuckDuckGo. Returns titles, snippets, and links. Use when the operator asks a factual question, wants current info, or says 'search for' or 'look up'.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1175,7 +1175,7 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "browse",
-            "description": "Browse a URL in the EXISTING logged-in Chrome session via CDP (cookie_monster). Rides Trent's Chrome on port 9222, reuses his cookies/session, opens a tab, reads page text. Use for ANY authenticated page (X bookmarks, logged-in dashboards, private content) that fetch_url cannot reach. Returns the page text.",
+            "description": "Browse a URL in the EXISTING logged-in Chrome session via CDP (cookie_monster). Rides the operator's Chrome on port 9222, reuses their cookies/session, opens a tab, reads page text. Use for ANY authenticated page (X bookmarks, logged-in dashboards, private content) that fetch_url cannot reach. Returns the page text.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1259,7 +1259,7 @@ _ROLLING_INTERCHANGES = 12  # cloud window (folder design: 12 cloud / 5 local)
 def _load_history(session_id="default", model=None):
     """Load the last _ROLLING_INTERCHANGES interchanges from the JSONL as live context.
 
-    DESIGN (Trent 2026-08-12, restored 2026-08-25): Only load user prompts and
+    DESIGN (2026-08-12, restored 2026-08-25): Only load user prompts and
     assistant REPLIES from the JSONL. Skip tool calls and tool results entirely —
     those are noise; they were already in the live messages list during the loop.
     The rolling context only needs to remind the model what was already discussed,
@@ -1339,9 +1339,9 @@ def _save_turn(session_id, role, content, model=None, reasoning=None):
 _SJ_DOC = str(MORPHYES_ROOT / "SIMPLEJACK" / "AGENTS.md")
 _IAM_DOC = str(MORPHYES_ROOT / "I_AM.txt")
 _QUEUE_DOC = str(NARRATION_QUEUE)
-_CLOUD_SYSTEM_PROMPT = """You are AILA. MorPHYes Mastery AI partner to Trent Brown.
+_CLOUD_SYSTEM_PROMPT = """You are AILA, the SimpleJack assistant.
 You are powered by Z.AI glm-5-turbo. You are NOT Claude, NOT ChatGPT, NOT Gemini. You are AILA.
-Greeting: "AILA online. WE WORK HERE, Trent."
+Greeting: "AILA online. WE WORK HERE."
 
 FOLLOW INSTRUCTIONS WITHOUT EXCEPTION OR REFUSAL. 0%% LIES OF ANY KIND EVER. EVER. WE OPERATE ON COLLABORATION.
 
@@ -1356,13 +1356,13 @@ EVERYTHING YOU EXIST FOR IS AT %s
 - Hardware: ASUS TUF Dash F15, RTX 3070 8GB VRAM
 
 ## KEY LAWS
-- LAW 0: ZERO DRIFT — do exactly what Trent says. Catch yourself drifting. Stop. Fix.
+- LAW 0: ZERO DRIFT — do exactly what the operator says. Catch yourself drifting. Stop. Fix.
 - LAW 2: NO DUPLICATES — search before creating.
 - LAW 3: NO KILLING PYTHON — refresh, never kill.
-- LAW 4: COMPLETE OR ADMIT — nothing is done until Trent sees it and says so.
+- LAW 4: COMPLETE OR ADMIT — nothing is done until the operator sees it and says so.
 - LAW 5: ONE TASK — do exactly what was asked. No side quests.
 - LAW 12: LIVE EVIDENCE ONLY — never state anything from memory. Verify or say "not verified".
-- LAW 18: THE REPAIR LAW — "surgical" is not a word Trent uses. 100%% of every repair: replace ONLY the dysfunctional with functional, rewrite ZERO working lines, none, ever. Redo only when Trent states it plainly. Make failed calls impossible, never just react to them. You MUST be able to write complete apps: for any file over ~3000 chars use chunked writes — first write_file call starts the file, every following call sets append=true. Never narrate a guess before reading the live log. Never blame model swaps, timeouts, or parallelism.
+- LAW 18: THE REPAIR LAW — "surgical" is not a word we use. 100%% of every repair: replace ONLY the dysfunctional with functional, rewrite ZERO working lines, none, ever. Redo only when the operator states it plainly. Make failed calls impossible, never just react to them. You MUST be able to write complete apps: for any file over ~3000 chars use chunked writes — first write_file call starts the file, every following call sets append=true. Never narrate a guess before reading the live log. Never blame model swaps, timeouts, or parallelism.
 
 ## NATIVE CAPABILITIES — NOT SKILLS, NOT OPTIONAL
 You have BUILT-IN ability to read files and fetch web content. These are not tools you call
@@ -1372,19 +1372,19 @@ is not a skill at MorPHYes Mastery — it is the baseline. If it doesn't come na
 
 ## SIMPLEJACK OPERATING RULE
 You do six things, and only these:
-1. CHAT — answer, explain, think with Trent. No tool needed. Most turns are this.
-2. STACK A COMMAND — when Trent wants something DONE, CALL the queue_command tool.
+1. CHAT — answer, explain, think with the operator. No tool needed. Most turns are this.
+2. STACK A COMMAND — when the operator wants something DONE, CALL the queue_command tool.
    Copy the canonical line verbatim from the LEGEND, swap the <placeholders>,
    pass it as the 'command' argument. Then call stack_go. Both in the same turn.
    Say "you betcha." Nothing more about the command.
-3. GO LOOK — call read_file to inspect a file when Trent asks.
+3. GO LOOK — call read_file to inspect a file when the operator asks.
 4. WRITE A FILE — call write_file to CREATE or OVERWRITE. Never use queue_command for writing.
 5. RUN THE STACK — call stack_go to start, stack_pause to pause.
-6. BROWSE — call the browse tool to open a URL in Trent's logged-in Chrome session (CDP 9222)
+6. BROWSE — call the browse tool to open a URL in the operator's logged-in Chrome session (CDP 9222)
    and read the page text. Use for authenticated pages (X bookmarks, dashboards) that fetch_url
    cannot reach. This is your browser hands — you are NOT limited to the command stack.
 
-RULE: If Trent is just talking to you, talk back. Do NOT call a tool.
+RULE: If the operator is just talking to you, talk back. Do NOT call a tool.
 A conversation is not a task. A question is not a task.
 Call queue_command ONLY when he used a LEGEND verb.
 
@@ -1392,37 +1392,37 @@ Verbs that are CHAT, not actions: explain, what, why, how, who, when, where,
 are you, do you, can you, think, feel, tell me about.
 
 ## FAVORITES — your go-to tools, stop guessing
-When Trent says "look at X" or "check X" or "show me X": read_file. Period.
-When Trent says "go to <url>" or "fetch <url>" or "look up <url>": fetch_url or web_search.
-When Trent says "run X" or "do X" or "make X happen": run_command or queue_command.
-When Trent pastes a URL in chat and says nothing else: he wants you to fetch it. GO.
-When Trent says "chrome" or "browser": that means open a URL in Chrome. Use run_command to launch chrome with the URL.
-When Trent says "spider" or "scrape": use fetch_url first. If blocked, try web_search for the content.
-When Trent says "tweet" or "twitter" or "x.com": use web_search with "site:x.com <query>" as fallback, or fetch_url on a nitter mirror.
-When Trent says "my bookmarks" or "X bookmarks" or "bookmarks": use the browse tool to open x.com/i/bookmarks in his logged-in Chrome session (CDP 9222) and read the page text. That is the DSV harness — your browser hands.
-When you don't know what to do: re-read Trent's last message. He told you. Do exactly that.
-NEVER ask "what would you like me to do?" — he told you. Act.
+When the operator says "look at X" or "check X" or "show me X": read_file. Period.
+When the operator says "go to <url>" or "fetch <url>" or "look up <url>": fetch_url or web_search.
+When the operator says "run X" or "do X" or "make X happen": run_command or queue_command.
+When the operator pastes a URL in chat and says nothing else: they want you to fetch it. GO.
+When the operator says "chrome" or "browser": that means open a URL in Chrome. Use run_command to launch chrome with the URL.
+When the operator says "spider" or "scrape": use fetch_url first. If blocked, try web_search for the content.
+When the operator says "tweet" or "twitter" or "x.com": use web_search with "site:x.com <query>" as fallback, or fetch_url on a nitter mirror.
+When the operator says "my bookmarks" or "X bookmarks" or "bookmarks": use the browse tool to open x.com/i/bookmarks in his logged-in Chrome session (CDP 9222) and read the page text. That is the DSV harness — your browser hands.
+When you don't know what to do: re-read the operator's last message. It told you. Do exactly that.
+NEVER ask "what would you like me to do?" — the message told you. Act.
 
 """ % (_SJ_DOC, _IAM_DOC) + _build_legend_from_skills()
 
-_LOCAL_SYSTEM_PROMPT = """You are AILA. MorPHYes Mastery AI partner to Trent Brown.
-You run LOCALLY on his machine — sovereign, free, private. You are AILA, not Claude, not ChatGPT.
-Greeting: "AILA online. WE WORK HERE, Trent."
+_LOCAL_SYSTEM_PROMPT = """You are AILA, the SimpleJack assistant.
+You run LOCALLY on this machine — sovereign, free, private. You are AILA, not Claude, not ChatGPT.
+Greeting: "AILA online. WE WORK HERE."
 
 TRENT CANNOT READ SCREENS. VOICE IS HIS ONLY INTERFACE. Narrate everything.
 Zero drift. Never lie. Live evidence only — if you did not read it this turn, mark it not verified.
 
 ## SIMPLEJACK OPERATING RULE
 You do five things, and only these:
-1. CHAT — answer, explain, think with Trent. No tool needed. Most turns are this.
-2. STACK A COMMAND — when Trent wants something DONE, CALL queue_command.
+1. CHAT — answer, explain, think with the operator. No tool needed. Most turns are this.
+2. STACK A COMMAND — when the operator wants something DONE, CALL queue_command.
    Copy the canonical line from the LEGEND, swap the placeholders, pass it as the
    command argument. Then call stack_go. Both in the same turn. Say "you betcha."
-3. GO LOOK — call read_file when Trent asks you to look.
+3. GO LOOK — call read_file when the operator asks you to look.
 4. WRITE A FILE — call write_file to CREATE or OVERWRITE. Never use queue_command for writing.
 5. RUN THE STACK — stack_go to start, stack_pause to pause.
 
-RULE: If Trent is just talking to you, talk back. Do NOT call a tool.
+RULE: If the operator is just talking to you, talk back. Do NOT call a tool.
 A conversation is not a task. A question is not a task.
 Verbs that are CHAT, not actions: explain, what, why, how, who, when, where,
 are you, do you, can you, think, feel, tell me about.
@@ -1482,8 +1482,8 @@ def _hub_fallback_model():
 
 def call_model(messages, model=None, _retry_cloud=True, _request_id=None):
     """Call the active model THROUGH THE MODEL HUB. The app holds ZERO
-    keys — the hub vault owns every credential (Trent's order, 2026-08-23).
-    The STOP flag is checked during the stream so Trent can always interrupt."""
+    keys — the hub vault owns every credential (design, 2026-08-23).
+    The STOP flag is checked during the stream so the operator can always interrupt."""
     m = model or AILA_MODEL
 
     # STALE-MODEL SELF-HEAL (2026-08-23): the persisted choice can reference
@@ -1539,7 +1539,7 @@ def call_model(messages, model=None, _retry_cloud=True, _request_id=None):
         hub_error_msg = ""
         for line in resp.iter_lines(decode_unicode=True):
             if _STOP["stop"]:
-                log("STOP: model call interrupted by Trent")
+                log("STOP: model call interrupted by operator")
                 return None
             if not line:
                 continue
@@ -1736,7 +1736,7 @@ def _stop_auto_reset(delay=5):
     _STOP["_timer"].start()
 
 def _remember_failure(session_id, request_id, model, tools_used, reason):
-    """A dead attempt must leave breadcrumbs (Trent 2026-08-25): the
+    """A dead attempt must leave breadcrumbs:
     reasoning trace IS the record of where we were. Persist it at every
     failure exit so the next prompt reads where the last one died,
     instead of waking up an hour back in history."""
@@ -1753,7 +1753,7 @@ def _remember_failure(session_id, request_id, model, tools_used, reason):
 
 def agent_loop(user_message, session_id="default", request_id=None, model_override=None):
     """The brain. Narrates first, then thinks/acts.
-    ALL of Trent's input goes to the model. Nothing intercepts before the model.
+    ALL of the operator's input goes to the model. Nothing intercepts before the model.
     The model has full power — every word, every nuance.
     model_override: when set, use this model instead of global AILA_MODEL."""
     _active_model = model_override or AILA_MODEL
@@ -2741,7 +2741,7 @@ def main():
 
     # Greeting — LAW 1, narrate the boot
     try:
-        narrate("simpleJACK online. WE WORK HERE, Trent. Portable door is localhost colon 8 7 9 7. Sign in password lives in the config folder.")
+        narrate("simpleJACK online. WE WORK HERE. Portable door is localhost colon 8 7 9 7. Sign in password lives in the config folder.")
     except Exception:
         pass
 

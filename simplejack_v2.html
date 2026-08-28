@@ -1759,7 +1759,7 @@ function sendChat() {
   // User bubble
   const userBubble = document.createElement('div');
   userBubble.className = 'bubble user';
-  userBubble.innerHTML = '<div class="who">Trent</div><div class="body">' + esc(prompt) + '</div>';
+  userBubble.innerHTML = '<div class="who">You</div><div class="body">' + esc(prompt) + '</div>';
   log.appendChild(userBubble);
   input.value = '';
   log.scrollTop = log.scrollHeight;
@@ -1978,7 +1978,7 @@ function loadHistory() {
           const bubble = document.createElement('div');
           bubble.className = 'bubble user';
           const tsStr = ts ? '<span class="ts">' + esc(ts.substring(0,19)) + '</span>' : '';
-          bubble.innerHTML = '<div class="who">Trent ' + tsStr + '</div><div class="body">' + esc(content) + '</div>';
+          bubble.innerHTML = '<div class="who">You ' + tsStr + '</div><div class="body">' + esc(content) + '</div>';
           frag.appendChild(bubble);
         } else if (role === 'assistant') {
           const bubble = document.createElement('div');
