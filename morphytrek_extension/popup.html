@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { width: 240px; padding: 16px; font-family: system-ui, sans-serif; background: #0a0b0f; color: #e6f0ff; }
+  h3 { margin: 0 0 12px; font-size: 1rem; color: #d97834; }
+  .toggle { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+  .toggle button { background: #1a1d28; color: #e6f0ff; border: 1px solid rgba(255,255,255,0.14); border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 0.82rem; }
+  .toggle button:hover { border-color: #d97834; }
+  .status { font-size: 0.75rem; color: #8a92a6; margin-top: 8px; }
+  .read-actions { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .read-actions button { background: #1a1d28; color: #e6f0ff; border: 1px solid rgba(255,255,255,0.14); border-radius: 6px; padding: 8px; cursor: pointer; font-size: 0.8rem; text-align: left; }
+  .read-actions button:hover { border-color: #d97834; color: #d97834; }
+</style>
+</head>
+<body>
+  <h3>morPHYtrek</h3>
+  <div class="toggle">
+    <span>Auto-read</span>
+    <button id="toggleBtn">Enable</button>
+  </div>
+  <div class="status" id="status">Disabled</div>
+  
+  <div class="toggle" style="border-top:1px solid rgba(255,255,255,0.08)">
+    <span>🎤 Mic to voice</span>
+    <button id="micBtn">Start mic</button>
+  </div>
+  <div class="status" id="micStatus">Mic off — speak to send words to the narration queue</div>
+  
+  <div class="read-actions">
+    <button id="readSelection">📖 Read selection</button>
+    <button id="readPage">📄 Read page</button>
+  </div>
+
+<script>
+  const btn = document.getElementById("toggleBtn");
+  const status = document.getElementById("status");
+  
+  function updateUI(enabled) {
+    btn.textContent = enabled ? "Disable" : "Enable";
+    status.textContent = enabled ? "✅ Listening for new messages" : "Disabled";
+  }
+  
+  chrome.storage.local.get(["morphyeo_enabled"], (result) => {
+    updateUI(result.morphyeo_enabled || false);
+  });
+  
+  btn.addEventListener("click", () => {
+    chrome.storage.local.get(["morphyeo_enabled"], (result) => {
+      const newState = !result.morphyeo_enabled;
+      chrome.storage.local.set({ morphyeo_enabled: newState });
+      
+      chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+        if (tabs[0]) {
+          chrome.tabs.sendMessage(tabs[0].id, { type: "SET_ENABLED", enabled: newState });
+        }
+      });
+      
+      updateUI(newState);
+    });
+  });
+  
+  document.getElementById("readSelection").addEventListener("click", () => {
+    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+      if (tabs[0]) {
+        chrome.tabs.sendMessage(tabs[0].id, { type: "READ_SELECTION" });
+      }
+    });
+  });
+  
+  document.getElementById("readPage").addEventListener("click", () => {
+    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+      if (tabs[0]) {
+        chrome.tabs.sendMessage(tabs[0].id, { type: "READ_PAGE" });
+      }
+    });
+  });
+  
+  // ── MIC TOGGLE ──────────────────────────────────────────────
+  const micBtn = document.getElementById("micBtn");
+  const micStatus = document.getElementById("micStatus");
+  let micOn = false;
+  
+  function updateMicUI(active) {
+    micOn = active;
+    micBtn.textContent = active ? "Stop mic" : "Start mic";
+    micStatus.textContent = active
+      ? "🎤 Listening — speak, words go to the narration queue (if the folder exists)"
+      : "Mic off — speak to send words to the narration queue";
+  }
+  
+  micBtn.addEventListener("click", () => {
+    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+      if (!tabs[0]) return;
+      const next = !micOn;
+      chrome.tabs.sendMessage(tabs[0].id, { type: "SET_MIC", active: next }, (resp) => {
+        if (chrome.runtime.lastError) {
+          micStatus.textContent = "Reload this tab, then try again";
+          return;
+        }
+        updateMicUI(resp && resp.active !== undefined ? resp.active : next);
+      });
+    });
+  });
+</script>
+</body>
+</html>

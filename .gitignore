@@ -1,0 +1,63 @@
+# =====================  SECRETS — NEVER COMMIT  =====================
+# Live API keys, tokens, passwords. These MUST stay out of git.
+*.log
+logs/
+.env
+.env*
+config/keys.local.json
+config/gate.password.txt
+conversations/
+morphytrek_data/
+
+# =====================  HUGE BINARIES — reinstallable  =====================
+# Embedded Python runtime (re-download / re-extract).
+runtime/
+# Piper TTS voices (re-download).
+piper/
+voices/
+# Whisper models
+models/
+*.onnx
+*.bin
+*.gguf
+
+# =====================  BUILD ARTIFACTS  =====================
+AILA.exe
+*.mp4
+
+# =====================  LIVE STATE — NEVER COMMIT  =====================
+# Runtime state files regenerate on every boot. Never publish a machine's
+# pids, flags, or queue snapshots. (gitignore trap: staged files ignore
+# these rules — always run `git rm --cached` on live state.)
+STACK/
+dispatch/.run
+dispatch/.active-model
+dispatch/dispatch.pid
+dispatch/dispatches.log
+dispatch/failures.log
+config/morPHYtrek_heartbeat.json
+config/piper_voice.txt
+
+# =====================  JUNK / TEST FILES  =====================
+$null
+'
+brain_launch_test.txt
+measure_staged.ps1
+
+# =====================  PYTHON  =====================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# =====================  BUILD / DIST  =====================
+dist/
+*.tmp
+
+# =====================  BACKUPS  =====================
+*.bak
+*.pre-tree-rip.bak
+
+# =====================  OS  =====================
+Thumbs.db
+Desktop.ini

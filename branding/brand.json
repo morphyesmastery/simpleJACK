@@ -1,0 +1,21 @@
+{
+  "name": "MorPHYes Mastery",
+  "os_name": "Sovereignty OS",
+  "palette": {
+    "bg": "#0f2340",
+    "orange": "#d97834",
+    "orange_hover": "#e88a4a",
+    "blue": "#3a7ca5",
+    "rust": "#b8401e",
+    "white": "#ffffff",
+    "ink": "#ece6d8",
+    "mut": "#8a92a6",
+    "line": "rgba(255,255,255,0.08)",
+    "card": "rgba(255,255,255,0.02)"
+  },
+  "fonts": {
+    "display": "Fraunces",
+    "body": "Spline Sans"
+  },
+  "voice_engine": "piper"
+}

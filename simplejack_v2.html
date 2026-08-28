@@ -1,0 +1,1960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>simpleJACK — MorPHYes Mastery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #0f2340;
+  --panel: #0a1a2e;
+  --panel-2: #112338;
+  --border: rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.14);
+  --border-orange: rgba(217,120,52,0.35);
+  --text: #ece6d8;
+  --muted: #8a92a6;
+  --orange: #d97834;
+  --orange-hover: #e88a4a;
+  --orange-glow: rgba(217,120,52,0.25);
+  --rust: #b8401e;
+  --blue: #3a7ca5;
+  --green: #4ade80;
+  --red: #f87171;
+  --yellow: #fbbf24;
+  --ink: #ece6d8;
+  --card: rgba(255,255,255,0.02);
+  --font: 'Inter', system-ui, sans-serif;
+  --display: 'Oswald', sans-serif;
+  --mono: ui-monospace, monospace;
+  --rail-w: 256px;
+  --header-h: 52px;
+  --tab-h: 44px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  overflow: hidden;
+}
+
+/* ── VIDEO WALLPAPER (workspace only) ─────────────────────────── */
+.video-wrap {
+  position: absolute; inset: 0;
+  z-index: 0; overflow: hidden; pointer-events: none;
+}
+.video-wrap video {
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: center;
+  opacity: 0.30;
+}
+.video-wrap .veil {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(15,35,64,0.5) 0%, rgba(15,35,64,0.7) 50%, var(--bg) 100%);
+}
+
+/* ── SHELL ────────────────────────────────────────────────── */
+.ui { position: relative; z-index: 2; display: flex; flex-direction: column; height: 100vh; }
+
+/* ── HEADER (FreedomNow style — white bar, brand) ──────────── */
+header {
+  height: var(--header-h);
+  background: rgba(10,26,46,0.92);
+  border-bottom: 1px solid var(--border-strong);
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 16px; flex-shrink: 0;
+  backdrop-filter: blur(10px);
+  z-index: 5;
+}
+header img.logo { height: 36px; width: auto; object-fit: contain; }
+header .nuke-btn {
+  width: 18px; height: 18px; margin-left: 8px; padding: 0;
+  background: url('nuclear_button_small.png') center/contain no-repeat, #1a1a2e;
+  background-size: contain;
+  border: 1px solid #333; border-radius: 4px; cursor: pointer;
+  opacity: 0.75; vertical-align: middle; flex-shrink: 0;
+}
+header .nuke-btn:hover { opacity: 1; border-color: var(--rust); transform: scale(1.06); }
+header .nuke-btn:active { transform: scale(0.94); }
+header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
+.brand {
+  margin-left: auto;
+  font-family: var(--display); font-weight: 700;
+  letter-spacing: 0.04em; color: var(--text); font-size: 0.95rem;
+}
+.brand .amp { color: var(--rust); }
+.brand .jack { color: var(--orange); }
+.brand .sub { color: var(--muted); font-size: 0.45em; letter-spacing: 0.18em; text-transform: uppercase; margin-left: 8px; }
+.status-pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 12px; border-radius: 999px;
+  background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.2);
+  font-size: 0.7rem; color: var(--green); font-family: var(--display);
+  letter-spacing: 0.04em;
+}
+.status-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+.status-pill.down { background: rgba(220,38,38,0.15); border: 1px solid rgba(220,38,38,0.4); color: var(--red); animation: flash 1s infinite; }
+.status-pill.down .dot { background: var(--red); }
+@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.4 } }
+@keyframes flash { 0%,100% { opacity:1 } 50% { opacity:0.5 } }
+
+/* ── APP LAYOUT (FreedomNow: rail + main) ─────────────────── */
+.app {
+  flex: 1; display: grid; min-height: 0;
+  grid-template-columns: var(--rail-w) 1fr;
+  grid-template-rows: var(--tab-h) 1fr;
+  overflow: hidden;
+}
+
+/* ── LEFT RAIL (FreedomNow style — project sidebar) ────────── */
+.rail {
+  grid-row: 1 / -1;
+  grid-column: 1;
+  background: var(--panel);
+  border-right: 1px solid var(--border-strong);
+  display: flex; flex-direction: column;
+  overflow-y: auto; overflow-x: hidden;
+  z-index: 3;
+}
+.rail::-webkit-scrollbar { width: 6px; }
+.rail::-webkit-scrollbar-track { background: transparent; }
+.rail::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+.rail h2 {
+  font-family: var(--display); font-size: 0.68rem;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--orange); margin: 12px 12px 6px;
+  padding: 0;
+}
+.rail h2:first-child { margin-top: 10px; }
+.rail .item, .rail .nav {
+  display: block; width: calc(100% - 16px); margin: 2px 8px;
+  text-align: left; background: transparent; color: var(--text);
+  border: 1px solid transparent; border-radius: 8px;
+  padding: 7px 10px; font: inherit; font-size: 0.82rem; cursor: pointer;
+}
+.rail .item:hover, .rail .nav:hover { background: rgba(255,255,255,0.05); border-color: var(--border-orange); }
+.rail .item.active, .rail .nav.active {
+  background: rgba(217,120,52,0.1); border-color: var(--orange); color: var(--orange);
+}
+.rail select, .rail input[type=text] {
+  width: calc(100% - 20px); margin: 4px 8px;
+  background: var(--panel-2); border: 1px solid var(--border-strong);
+  color: var(--text); border-radius: 8px; padding: 7px 10px;
+  font: inherit; font-size: 0.8rem;
+}
+.rail select:focus, .rail input[type=text]:focus {
+  outline: none; border-color: var(--orange); box-shadow: 0 0 0 2px var(--orange-glow);
+}
+.rail .ghost {
+  width: calc(100% - 16px); margin: 6px 8px;
+  background: var(--panel-2); border: 1px solid var(--border-orange);
+  color: var(--orange); border-radius: 8px; padding: 6px 10px;
+  font-family: var(--display); font-size: 0.72rem;
+  letter-spacing: 0.04em; cursor: pointer; text-align: left;
+}
+.rail .ghost:hover { background: var(--orange); color: var(--bg); }
+.rail .hint { font-size: 0.7rem; color: var(--muted); margin: 4px 12px 6px; }
+.rail .status { font-size: 0.68rem; color: var(--muted); margin: 2px 12px 8px; }
+.rail .status.on { color: var(--green); }
+
+/* ── FILE TREE ──────────────────────────────────────────────── */
+  display: flex; align-items: center; gap: 4px;
+  padding: 3px 6px; border-radius: 4px; cursor: pointer;
+  font-size: 0.78rem; color: var(--text); white-space: nowrap;
+  border: 1px solid transparent; margin: 1px 0;
+}
+
+/* ── TAB BAR (FreedomNow persona-tabs style) ────────────────── */
+.tab-bar {
+  grid-row: 1; grid-column: 2;
+  display: flex; align-items: stretch;
+  background: rgba(10,26,46,0.6);
+  border-bottom: 1px solid var(--border-strong);
+  backdrop-filter: blur(6px);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+.tab-bar::-webkit-scrollbar { height: 0; }
+.sj-tab {
+  flex: 1; min-width: 120px; max-width: 220px;
+  background: rgba(15,35,64,0.4);
+  border: none; border-bottom: 3px solid transparent;
+  color: rgba(236,230,216,0.75);
+  font-family: var(--display); font-size: 0.82rem;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 10px 14px; cursor: pointer;
+  transition: all 0.15s; white-space: nowrap;
+  display: flex; align-items: center; gap: 6px;
+}
+.sj-tab:hover { color: #fff; background: rgba(15,35,64,0.55); }
+.sj-tab.active {
+  color: #fff; border-bottom-color: var(--orange);
+  background: rgba(217,120,52,0.15);
+}
+.sj-tab .tab-icon { font-size: 0.75rem; }
+.sj-tab .tab-sub {
+  display: block; font-family: var(--font); font-size: 0.55rem;
+  letter-spacing: 0.02em; text-transform: none;
+  color: rgba(236,230,216,0.5); font-weight: 400;
+}
+.sj-tab.locked .tab-lock { color: var(--green); font-size: 0.6rem; }
+.sj-tab .tab-remove {
+  margin-left: auto; font-size: 0.65rem; color: var(--muted);
+  padding: 2px 4px; border-radius: 3px; cursor: pointer;
+  opacity: 0; transition: opacity 0.15s;
+}
+.sj-tab:hover .tab-remove { opacity: 0.7; }
+.sj-tab .tab-remove:hover { opacity: 1; color: var(--red); }
+
+/* ── TAB ACCENT COLORS (set via data-color on tab button) ─────── */
+.sj-tab[data-color="red"] { --accent: #ef4444; }
+.sj-tab[data-color="orange"] { --accent: #d97834; }
+.sj-tab[data-color="white"] { --accent: #ece6d8; }
+.sj-tab[data-color="gold"] { --accent: #c8a24a; }
+.sj-tab[data-color] { border-bottom-color: transparent; }
+.sj-tab[data-color].active { border-bottom-color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); }
+.sj-tab[data-color] .tab-icon { color: var(--accent); }
+
+/* PLUS BUTTON */
+.plus-btn {
+  flex: 0 0 42px; min-width: 42px; max-width: 42px;
+  background: rgba(15,35,64,0.3);
+  border: 1px dashed var(--border-orange);
+  color: var(--orange); font-size: 1.2rem;
+  font-family: var(--display); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; border-bottom: 3px solid transparent;
+}
+.plus-btn:hover { background: rgba(217,120,52,0.15); border-bottom-color: var(--orange); }
+
+/* QR ICON BUTTON (right of tab bar) */
+.qr-icon-btn {
+  flex: 0 0 42px; min-width: 42px; max-width: 42px;
+  background: rgba(15,35,64,0.3);
+  border: 1px solid var(--border-orange);
+  color: var(--orange); font-size: 0.6rem;
+  font-family: var(--display); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; border-bottom: 3px solid transparent;
+  letter-spacing: 0.04em;
+}
+.qr-icon-btn:hover { background: rgba(217,120,52,0.15); border-bottom-color: var(--orange); }
+
+/* ── MAIN WORKSPACE ─────────────────────────────────────────── */
+.workspace {
+  grid-row: 2; grid-column: 2;
+  position: relative; display: flex; flex-direction: column;
+  min-height: 0; overflow: hidden;
+  background: var(--bg);
+}
+.workspace > .tab-panel { flex: 1; display: none; flex-direction: column; min-height: 0; overflow: hidden; }
+.workspace > .tab-panel.active { display: flex; }
+
+/* ── CHAT AREA ─────────────────────────────────────────────── */
+.chat-log {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 16px 20px; display: flex; flex-direction: column; gap: 10px;
+}
+.chat-log::-webkit-scrollbar { width: 6px; }
+.chat-log::-webkit-scrollbar-track { background: transparent; }
+.chat-log::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+
+.bubble {
+  max-width: min(780px, 92%); padding: 12px 16px;
+  border-radius: 12px; font-size: 0.88rem; line-height: 1.55; white-space: pre-wrap;
+  animation: slideIn 0.2s ease;
+}
+@keyframes slideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.ts { font-size: 0.6rem; color: var(--muted); margin-left: 6px; }
+/* RSVP TRACE DROPDOWN (Trent 2026-08-14) — collapsed reasoning above the reply */
+.rsvp-trace-dd { margin: 4px 0 2px 0; border: 1px solid var(--border); border-radius: 6px; }
+.rsvp-trace-dd summary {
+  cursor: pointer; padding: 4px 10px; font-size: .72rem; letter-spacing: .08em;
+  color: var(--rust); user-select: none; list-style: none;
+}
+.rsvp-trace-dd summary::-webkit-details-marker { display: none; }
+.rsvp-trace-dd[open] summary { border-bottom: 1px solid var(--border); }
+.rsvp-trace-body {
+  margin: 0; padding: 8px 10px; max-height: 320px; overflow-y: auto;
+  font-size: .74rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word;
+  color: #b0b8cc; background: rgba(0,0,0,.15);
+}
+
+/* ── READ ALOUD WITH MORPHYTREK — right-click any selected text (Trent 2026-08-24).
+   Same pipe the Chrome extension uses: /api/narrate → queue → Piper. */
+.ra-menu {
+  position: fixed; z-index: 9999; display: none; min-width: 240px;
+  background: var(--panel); border: 1px solid var(--orange); border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.6); padding: 4px 0;
+}
+.ra-menu button {
+  display: block; width: 100%; text-align: left; background: none; border: none;
+  color: var(--text); font: inherit; font-size: .72rem; letter-spacing: .1em;
+  padding: 9px 14px; cursor: pointer;
+}
+.ra-menu button:hover { background: rgba(217,120,52,.18); color: var(--orange); }
+
+
+.bubble.user {
+  align-self: flex-end;
+  background: rgba(217,120,52,0.45); border: 1px solid var(--border);
+  backdrop-filter: blur(6px);
+}
+.bubble.aila {
+  align-self: flex-start;
+  background: rgba(10,26,46,0.85); border: 1px solid var(--border);
+  backdrop-filter: blur(6px);
+}
+.bubble .who {
+  font-family: var(--display); font-size: 0.65rem;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 5px;
+  display: flex; align-items: center; gap: 8px;
+}
+.bubble.user .who { color: var(--orange); }
+.bubble .who .model-tag { font-family: var(--font); font-weight: 400; font-size: 0.6rem; color: var(--muted); }
+.typing { display: inline-flex; gap: 4px; }
+.typing span { width: 8px; height: 8px; border-radius: 50%; background: var(--orange); animation: bounce 1.4s infinite; }
+.typing span:nth-child(2) { animation-delay: 0.2s; }
+.typing span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce { 0%,60%,100% { opacity: 0.3; } 30% { opacity: 1; } }
+.tool-chip {
+  display: inline-block; margin: 2px 4px 2px 0; padding: 2px 8px;
+  background: rgba(217,120,52,0.12); border-radius: 4px;
+  color: var(--orange); font-size: 0.7rem; font-family: var(--mono);
+}
+.tool-chips {
+  margin: 4px 0 2px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.tools-row {
+  margin-top: 6px; font-size: 0.7rem; color: var(--muted);
+  border-top: 1px solid var(--border); padding-top: 5px;
+}
+
+/* ── STACK PANEL (inline above input) ──────────────────────── */
+.stack-panel {
+  flex-shrink: 0; margin: 0 20px;
+  padding: 8px 14px;
+  background: rgba(10,26,46,0.7); border: 1px solid var(--border);
+  border-radius: 8px; font-size: 0.72rem; color: var(--muted);
+  font-family: var(--mono); display: flex; flex-direction: column; gap: 3px;
+}
+.stack-row { display: flex; justify-content: space-between; gap: 12px; }
+.stack-row .label { color: var(--muted); }
+.stack-row .val { color: var(--green); }
+.stack-row .val.busy { color: var(--yellow); }
+
+/* ── INPUT AREA ─────────────────────────────────────────────── */
+.input-area {
+  flex-shrink: 0; padding: 12px 20px;
+  background: rgba(10,26,46,0.88);
+  border-top: 1px solid var(--border-strong);
+  backdrop-filter: blur(8px);
+}
+.input-wrap { display: flex; gap: 10px; max-width: 100%; align-items: flex-end; }
+.provider-select {
+  padding: 10px; border-radius: 10px;
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border-strong); font-size: 0.8rem;
+  font-weight: 600; cursor: pointer; height: 44px;
+  font-family: var(--display); letter-spacing: 0.02em;
+  max-width: 220px;
+}
+.provider-select:focus { outline: none; border-color: var(--orange); }
+.provider-select optgroup { color: var(--text); font-style: normal; }
+.provider-select option { color: var(--text); }
+.input-wrap textarea {
+  flex: 1; resize: none; min-height: 44px; max-height: 140px;
+  padding: 10px 14px; border-radius: 10px;
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border-strong); font: inherit; line-height: 1.45;
+}
+.input-wrap textarea:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px rgba(217,120,52,0.12); }
+.send-btn {
+  padding: 10px 22px; border-radius: 10px; border: none; cursor: pointer;
+  background: var(--orange); color: var(--bg); font-weight: 700;
+  font-size: 0.85rem; height: 44px; white-space: nowrap;
+  font-family: var(--display); letter-spacing: 0.04em; transition: all 0.15s;
+}
+.send-btn:hover { background: var(--orange-hover); }
+.stop-btn {
+  background: var(--red); color: #fff; border: none; border-radius: 4px;
+  padding: 2px 10px; cursor: pointer; font-size: 0.65rem;
+  font-family: var(--display); letter-spacing: 0.04em;
+}
+
+/* ── RSVP REASONING TRACE — ORP-based rendering ───────────── */
+/* Each word is split at the Optimal Recognition Point.
+   The ORP character is highlighted in the brand accent (rust/orange).
+   Pre-ORP and post-ORP text are dimmer. This trains faster reading
+   by guiding the eye to the most informative character.           */
+.rsvp-container {
+  flex-shrink: 0; margin: 0 20px;
+  background: rgba(10,26,46,0.85); border: 1px solid rgba(217,120,52,0.2);
+  border-radius: 10px; overflow: hidden; display: none;
+  backdrop-filter: blur(6px);
+}
+.rsvp-container.active { display: block; }
+.rsvp-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 14px; border-bottom: 1px solid var(--border);
+  background: rgba(217,120,52,0.06);
+}
+.rsvp-header .rsvp-label {
+  font-family: var(--display); font-size: 0.62rem;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--orange); display: flex; align-items: center; gap: 8px;
+}
+.rsvp-header .rsvp-label .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--orange); animation: pulse 1s infinite;
+}
+.rsvp-controls {
+  display: flex; align-items: center; gap: 8px;
+}
+.rsvp-controls label {
+  font-size: 0.65rem; color: var(--muted); font-family: var(--mono);
+}
+.rsvp-controls input[type=range] {
+  width: 80px; height: 4px; accent-color: var(--orange); cursor: pointer;
+}
+.rsvp-controls .rsvp-wpm {
+  font-size: 0.6rem; color: var(--orange); font-family: var(--mono);
+  min-width: 32px; text-align: right;
+}
+.rsvp-controls button {
+  background: none; border: 1px solid var(--border); color: var(--muted);
+  border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 0.6rem;
+  font-family: var(--display); letter-spacing: 0.04em;
+}
+.rsvp-controls button:hover { border-color: var(--orange); color: var(--orange); }
+.rsvp-display {
+  min-height: 60px; max-height: 240px; overflow-y: auto;
+  padding: 8px 16px; display: flex; flex-direction: column; gap: 2px;
+}
+.rsvp-display::-webkit-scrollbar { width: 4px; }
+.rsvp-display::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+
+/* ── RSVP WORD — ORP rendering ── */
+/* Single focus word. No past words visible. One word at a time. */
+.rsvp-word {
+  font-family: var(--mono); font-size: 2.2rem;
+  font-weight: 400; text-align: center;
+  padding: 4px 0; letter-spacing: 0.04em;
+  opacity: 0; transform: translateY(4px);
+  animation: rsvpWordIn 0.06s ease forwards;
+  line-height: 1.4;
+  color: var(--text); /* white letters */
+  display: block;
+}
+.rsvp-word .rsvp-pre {
+  color: rgba(236,230,216,0.55);
+}
+.rsvp-word .rsvp-orp {
+  color: var(--rust); /* THE focal point — brand rust accent */
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(184,64,30,0.5);
+}
+.rsvp-word .rsvp-post {
+  color: rgba(236,230,216,0.45);
+}
+
+/* "DONE" splash when reasoning finishes */
+.rsvp-done-text {
+  font-family: var(--display); font-size: 2.4rem;
+  font-weight: 700; color: var(--rust);
+  text-align: center; padding: 12px 0;
+  letter-spacing: 0.2em;
+  text-shadow: 0 0 20px rgba(184,64,30,0.6);
+  animation: rsvpDoneIn 0.3s ease forwards;
+}
+
+/* Full trace shown after RSVP completes */
+.rsvp-full-trace {
+  font-family: var(--mono); font-size: 0.82rem;
+  color: var(--text); line-height: 1.7;
+  white-space: pre-wrap; word-break: break-word;
+  opacity: 0.85; padding: 4px 0;
+}
+
+@keyframes rsvpWordIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rsvpDoneIn {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ── RSVP FOV indicator — the focal line ── */
+.rsvp-fov {
+  position: relative;
+  border-top: 1px solid rgba(217,120,52,0.15);
+  border-bottom: 1px solid rgba(217,120,52,0.15);
+  background: rgba(217,120,52,0.03);
+  padding: 4px 0;
+}
+
+/* ── DOCUMENT PREVIEW (Files panel) ────────────────────────── */
+  flex: 1; min-height: 0; display: none; flex-direction: column;
+  background: var(--bg); border-top: 1px solid var(--border-strong);
+}
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 14px; background: rgba(10,26,46,0.9);
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+  font-family: var(--mono); font-size: 0.75rem; color: var(--blue);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;
+}
+  background: none; border: 1px solid var(--border); color: var(--muted);
+  border-radius: 4px; padding: 3px 10px; cursor: pointer;
+  font-size: 0.62rem; font-family: var(--display); letter-spacing: 0.04em;
+  display: flex; align-items: center; gap: 4px;
+}
+  flex: 1; overflow-y: auto; padding: 14px 18px;
+  font-family: var(--mono); font-size: 0.82rem; color: var(--text);
+  line-height: 1.65; white-space: pre-wrap; word-break: break-word;
+  tab-size: 4;
+}
+
+/* ── PATH MODAL ────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+  display: none; align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--panel); border: 1px solid var(--border-strong);
+  border-radius: 14px; padding: 24px; width: 90%; max-width: 500px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.modal h3 {
+  font-family: var(--display); font-size: 1rem;
+  color: var(--orange); margin-bottom: 6px; letter-spacing: 0.04em;
+}
+.modal .hint { font-size: 0.75rem; color: var(--muted); margin-bottom: 16px; }
+.modal input[type=text] {
+  width: 100%; padding: 10px 14px; border-radius: 10px;
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border-strong); font: inherit; font-size: 0.88rem;
+  font-family: var(--mono);
+}
+.modal input[type=text]:focus { outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px var(--orange-glow); }
+.modal .modal-btns { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+.modal .modal-btns button {
+  padding: 8px 20px; border-radius: 8px; border: none; cursor: pointer;
+  font-family: var(--display); font-size: 0.8rem; letter-spacing: 0.03em;
+}
+.modal .modal-btns .btn-cancel { background: var(--panel-2); color: var(--muted); border: 1px solid var(--border); }
+.modal .modal-btns .btn-cancel:hover { border-color: var(--orange); color: var(--orange); }
+.modal .modal-btns .btn-add { background: var(--orange); color: var(--bg); font-weight: 700; }
+.modal .modal-btns .btn-add:hover { background: var(--orange-hover); }
+.modal .error { color: var(--red); font-size: 0.72rem; margin-top: 8px; min-height: 18px; }
+
+/* ── COLOR PICKER (actual color boxes, not a dropdown) ────────── */
+.color-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.color-row label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-family: var(--display); }
+.color-box {
+  width: 28px; height: 28px; border-radius: 6px; cursor: pointer;
+  border: 2px solid transparent; transition: all 0.15s;
+}
+.color-box:hover { transform: scale(1.1); }
+.color-box.selected { border-color: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.3); }
+.color-box[data-c="red"] { background: #ef4444; }
+.color-box[data-c="orange"] { background: #d97834; }
+.color-box[data-c="white"] { background: #ece6d8; }
+.color-box[data-c="gold"] { background: #c8a24a; }
+
+/* ── DESTINATION PICKER (tab vs nav) ─────────────────────────── */
+.dest-row { display: flex; gap: 8px; margin-bottom: 14px; }
+.dest-btn {
+  flex: 1; padding: 8px; border-radius: 8px; cursor: pointer;
+  background: var(--panel-2); color: var(--muted); border: 1px solid var(--border);
+  font-family: var(--display); font-size: 0.72rem; letter-spacing: 0.04em;
+  text-align: center; transition: all 0.15s;
+}
+.dest-btn:hover { border-color: var(--orange); color: var(--orange); }
+.dest-btn.selected { background: rgba(217,120,52,0.12); border-color: var(--orange); color: var(--orange); }
+
+/* ── MOBILE (2026-08-23) — the rail falls away into a drawer ── */
+#railToggle {
+  display: none; width: 42px; height: 38px; flex-shrink: 0;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border-strong);
+  border-radius: 8px; color: var(--orange); font-size: 1.2rem; line-height: 1;
+  cursor: pointer; align-items: center; justify-content: center;
+}
+#railToggle:active { border-color: var(--orange); }
+#railBackdrop {
+  display: none; position: fixed; inset: 0; z-index: 39;
+  background: rgba(4,12,24,0.62);
+}
+/* Live reasoning trace under the RSVP display — full text renders
+   regardless of reading speed (Trent 2026-08-23: the RSVP alone caps
+   what gets SEEN at reading WPM; the trace must all be there). */
+.rsvp-live-trace {
+  margin: 8px 0 0 0; max-height: 180px; overflow-y: auto;
+  font-family: var(--mono); font-size: 0.68rem; line-height: 1.55;
+  color: var(--muted); white-space: pre-wrap; word-break: break-word;
+  border-top: 1px dashed var(--border); padding-top: 6px;
+}
+@media (max-width: 880px) {
+  #railToggle { display: flex; }
+  .app { grid-template-columns: 1fr; }
+  /* the rail left the grid — pin tab bar + workspace to the only column */
+  .tab-bar, .workspace { grid-column: 1; }
+  .rail {
+    position: fixed; top: var(--header-h); bottom: 0; left: 0;
+    width: min(80vw, 300px); z-index: 40;
+    transform: translateX(-102%); transition: transform 0.22s ease;
+    box-shadow: 14px 0 44px rgba(0,0,0,0.55);
+  }
+  .rail.open { transform: translateX(0); }
+  header { padding: 0 10px; gap: 8px; }
+  #chatSearch { display: none; }
+  .brand .sub { display: none; }
+  #chatLog { padding: 10px 12px; font-size: 0.9rem; }
+  .input-area { padding: 8px 10px; }
+  .bubble { max-width: 100%; }
+  .rsvp-trace-body { max-height: 55vh; }
+  .rsvp-display { min-height: 80px; }
+  .rsvp-live-trace { max-height: 140px; }
+}
+</style>
+</head>
+<body>
+
+<div class="ui">
+
+<!-- ── HEADER ────────────────────────────────────────────────── -->
+<header>
+  <button id="railToggle" type="button" onclick="toggleRail()" title="Menu" aria-label="Toggle menu">&#9776;</button>
+  <img src="morphyes-logo.jpg" alt="MorPHYes Mastery" class="logo" />
+  <button class="nuke-btn" ondblclick="wipeTranscript()" title="Double-click: wipe the raw transcript (fresh session)"></button>
+  <div class="brand">
+    <span class="amp">&</span>simple<span class="jack">JACK</span>
+    <span class="sub">MASTERY</span>
+  </div>
+  <div id="statusPill" class="status-pill">
+    <div class="dot"></div>
+    <span id="statusText">AILA</span>
+  </div>
+  <input type="text" id="chatSearch" placeholder="Search chat..." style="flex:0 1 180px;padding:4px 10px;border-radius:6px;border:1px solid var(--rust);background:rgba(10,26,46,0.6);color:var(--fg);font-size:0.68rem;font-family:var(--display);outline:none" oninput="searchChat(this.value)" />
+  <button class="ghost" style="padding:4px 10px;border-radius:6px;border:1px solid var(--rust);background:rgba(10,26,46,0.6);color:var(--rust);font-size:0.68rem;font-family:var(--display);cursor:pointer;font-weight:700" onclick="scrollChatBottom()" title="Scroll to bottom">&#8595;</button>
+  <button class="ghost" style="padding:4px 10px;border-radius:6px;border:1px solid var(--rust);background:rgba(10,26,46,0.6);color:var(--rust);font-size:0.68rem;font-family:var(--display);cursor:pointer;font-weight:700" onclick="refreshAll()">&#8635;</button>
+</header>
+
+<div id="railBackdrop" onclick="toggleRail(false)"></div>
+
+<!-- ── FIRST-RUN SETUP OVERLAY ───────────────────────────────
+     Shown by checkSetupStatus() when nothing is configured.
+     Get access key → opens the provider's key page in the default
+     browser. Paste key → Test (REAL) → Save. Never a fake ready. -->
+<div id="setupOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(6,18,34,0.94);backdrop-filter:blur(4px);align-items:center;justify-content:center;font-family:var(--display)">
+  <div style="background:linear-gradient(160deg,#0f2340,#0a1a2e);border:1px solid var(--rust);border-radius:14px;max-width:560px;width:92%;padding:28px 32px;box-shadow:0 18px 60px rgba(0,0,0,0.6)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+      <span style="font-size:1.5rem">&amp;</span><span style="font-size:1.5rem;font-weight:800;color:var(--fg)">simple<span style="color:var(--rust)">JACK</span></span>
+    </div>
+    <div style="font-size:0.78rem;color:var(--rust);letter-spacing:2px;margin-bottom:16px;font-weight:700">FIRST RUN — ONE KEY, ONE MINUTE</div>
+    <p style="font-size:0.9rem;color:#c8d6e8;line-height:1.6;margin:0 0 18px 0">
+      This is your machine. No accounts, no subscriptions, no cloud lock-in.
+      Get a free key from one of these providers, paste it in, hit Test,
+      and you are talking.
+    </p>
+
+    <label style="font-size:0.72rem;color:#9fb3c8;letter-spacing:1px;font-weight:700">1 · PROVIDER</label>
+    <select id="setupProvider" style="width:100%;margin:6px 0 14px 0;padding:10px 12px;border-radius:8px;border:1px solid var(--rust);background:#0a1a2e;color:var(--fg);font-size:0.88rem;font-family:var(--display)">
+      <option value="openrouter">OpenRouter — one key, hundreds of models, free options</option>
+      <option value="nvidia">NVIDIA — free API key at build.nvidia.com</option>
+      <option value="zai">Z.AI GLM — fast coding model</option>
+      <option value="zenmux">ZenMux — multi-model gateway</option>
+      <option value="github_models">GitHub Models — free with a GitHub account</option>
+    </select>
+
+    <label style="font-size:0.72rem;color:#9fb3c8;letter-spacing:1px;font-weight:700">2 · GET YOUR KEY</label>
+    <button id="btnGetKey" onclick="openKeyPage()" style="width:100%;margin:6px 0 4px 0;padding:12px;border-radius:8px;border:none;background:var(--rust);color:#fff;font-size:0.92rem;font-family:var(--display);font-weight:800;cursor:pointer">GET ACCESS KEY →</button>
+    <div id="keyUrlHint" style="font-size:0.72rem;color:#9fb3c8;margin:4px 0 14px 0">Opens the provider's key page in your browser. Copy the key it gives you.</div>
+
+    <label style="font-size:0.72rem;color:#9fb3c8;letter-spacing:1px;font-weight:700">3 · PASTE KEY</label>
+    <input type="password" id="setupKey" placeholder="sk-… paste your key here" style="width:100%;margin:6px 0 14px 0;padding:10px 12px;border-radius:8px;border:1px solid var(--rust);background:#0a1a2e;color:var(--fg);font-size:0.88rem;font-family:var(--mono)" />
+
+    <div style="display:flex;gap:10px">
+      <button onclick="testKey()" style="flex:1;padding:12px;border-radius:8px;border:1px solid var(--rust);background:rgba(217,120,52,0.12);color:var(--rust);font-size:0.88rem;font-family:var(--display);font-weight:800;cursor:pointer">TEST KEY (real)</button>
+      <button onclick="saveKey()" style="flex:1;padding:12px;border-radius:8px;border:none;background:#2e8b57;color:#fff;font-size:0.88rem;font-family:var(--display);font-weight:800;cursor:pointer">SAVE &amp; START</button>
+    </div>
+    <div id="setupResult" style="margin-top:14px;font-size:0.8rem;color:#c8d6e8;min-height:18px;font-family:var(--mono);white-space:pre-wrap"></div>
+
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(159,179,200,0.15);font-size:0.72rem;color:#6e849c;line-height:1.6">
+      <b style="color:#9fb3c8">No key at all?</b> If you run Ollama locally, this screen disappears on its own —
+      the brain detects your local models and starts without any key.
+    </div>
+  </div>
+</div>
+
+<!-- ── APP: RAIL + TABS + WORKSPACE ─────────────────────────── -->
+<div class="app">
+
+  <!-- LEFT RAIL -->
+  <aside class="rail">
+    <h2>Navigation</h2>
+    <button type="button" class="nav active" data-nav="chat" onclick="navClick('chat',this)">Conversation</button>
+    <button type="button" class="nav" data-nav="stack" onclick="navClick('stack',this)">Stack</button>
+    <div id="navMasterpieces"></div>
+
+    <h2>Local Intelligence</h2>
+    <select id="activeProvider" class="model-sel" onchange="switchModel()" title="Live model list from simplejack.py">
+      <!-- populated by JS from /api/models — engine groups + local Ollama -->
+      <option value="aila_model:latest">aila_model</option>
+    </select>
+    <div class="status" id="modelStatus">Local model: checking...</div>
+
+    <h2>Stack</h2>
+    <div class="stack-panel" id="railStackPanel">
+      <div class="stack-row"><span class="label">Depth</span><span class="val" id="stackDepthRail">0</span></div>
+      <div class="stack-row"><span class="label">Running</span><span class="val busy" id="stackCurrentRail">(idle)</span></div>
+    </div>
+
+  </aside>
+
+  <!-- TAB BAR (FreedomNow persona-tabs) -->
+  <div class="tab-bar" id="tabBar">
+    <!-- Tabs populated by JS. Local AILA is locked, others from + button -->
+  </div>
+
+  <!-- WORKSPACE -->
+  <div class="workspace" id="workspace">
+    <!-- VIDEO (behind workspace content only) -->
+    <div class="video-wrap">
+      <video id="bgVideo" autoplay muted loop playsinline preload="auto">
+        <source src="SHORTSCOVER.mp4" type="video/mp4">
+      </video>
+      <div class="veil"></div>
+    </div>
+
+    <!-- CHAT PANEL (shared across tabs — conversations are per-tab) -->
+    <div class="tab-panel active" id="panel-chat">
+      <div class="chat-log" id="chatLog"></div>
+      <div class="stack-panel" id="inlineStackPanel">
+        <div class="stack-row"><span class="label">STACK depth</span><span class="val" id="stackDepthInline">0</span></div>
+        <div class="stack-row"><span class="label">RUNNING</span><span class="val busy" id="stackCurrentInline">(idle)</span></div>
+      </div>
+      <div class="input-area">
+        <div class="input-wrap">
+          <textarea id="promptInput" placeholder="Talk to AILA..." autofocus></textarea>
+          <button class="send-btn" onclick="sendChat()">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STACK PANEL -->
+    <div class="tab-panel" id="panel-stack">
+      <div class="chat-log">
+        <h2 style="font-family:var(--display);color:var(--orange);text-transform:uppercase;letter-spacing:0.04em">The Stack</h2>
+        <p style="color:var(--muted);font-size:0.82rem;margin-bottom:10px">Commands queued in STACK/queue.txt. Dispatch pastes each into a visible command window. Nothing runs hidden.</p>
+        <div class="stack-panel" id="stackFullPanel">
+          <div class="stack-row"><span class="label">STACK depth</span><span class="val" id="stackDepthFull">0</span></div>
+          <div class="stack-row"><span class="label">RUNNING</span><span class="val busy" id="stackCurrentFull">(idle)</span></div>
+          <div id="stackQueuePreview"></div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:8px">
+          <button class="send-btn" style="height:40px" onclick="stackGo()">Dispatch GO</button>
+          <button class="send-btn" style="height:40px;background:var(--rust)" onclick="stackPause()">Pause</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /ui -->
+
+<!-- ── PATH MODAL (for + button) ─────────────────────────────── -->
+<div class="modal-overlay" id="pathModal">
+  <div class="modal">
+    <h3>Add Masterpiece</h3>
+    <p class="hint">Paste the path to a .py file. The TAB hook in the file tells the system its name, icon, and what it does. Swap the file anytime to update.</p>
+    <div class="color-row">
+      <label>Accent</label>
+      <div class="color-box selected" data-c="orange" onclick="pickColor(this)"></div>
+      <div class="color-box" data-c="red" onclick="pickColor(this)"></div>
+      <div class="color-box" data-c="white" onclick="pickColor(this)"></div>
+      <div class="color-box" data-c="gold" onclick="pickColor(this)"></div>
+    </div>
+    <div class="dest-row">
+      <button class="dest-btn selected" data-dest="tab" onclick="pickDest(this)">As Tab</button>
+      <button class="dest-btn" data-dest="nav" onclick="pickDest(this)">In Navigation</button>
+    </div>
+    <input type="text" id="pathInput" placeholder="path to a .py tool, e.g. C:\folder\skill.py" />
+    <div class="error" id="pathError"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closePathModal()">Cancel</button>
+      <button class="btn-add" onclick="addMasterpiece()">Add</button>
+    </div>
+  </div>
+</div><!-- /pathModal -->
+
+<!-- ── QR CODE MODAL ─────────────────────────────────────────── -->
+<div class="modal-overlay" id="qrModal">
+  <div class="modal" style="text-align:center">
+    <h3>QR Code</h3>
+    <p class="hint">Enter a URL or any text. The QR code appears instantly. Scan from your phone.</p>
+    <input type="text" id="qrInput" placeholder="https://your-tailscale-url:8797" />
+    <div id="qrOutput" style="margin-top:16px;display:flex;justify-content:center"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeQRModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="marked.min.js"></script>
+<script src="qrcode.min.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+//  simpleJACK v2 — reimagined dashboard
+//  One HTML. Many PYs. Modular tabs. FreedomNow style.
+// ══════════════════════════════════════════════════════════════
+
+const API = '';  // same origin — simplejack.py on port 8797 (portable)
+let activeTab = 'local-aila';
+let taskCounter = 0;
+
+// ── Video wallpaper ───────────────────────────────────────────
+const bgv = document.getElementById('bgVideo');
+if (bgv) { bgv.playbackRate = 0.2; bgv.play().catch(() => {}); }
+
+// ── TAB SYSTEM ────────────────────────────────────────────────
+// Tabs stored in localStorage — survive refresh
+const BUILTIN_TABS = [
+  { id: 'local-aila', name: 'Local AILA', sub: 'sovereign · offline · zero cost', icon: '🏠', locked: true }
+];
+
+function loadTabs() {
+  try { return JSON.parse(localStorage.getItem('sj_tabs') || '[]'); } catch { return []; }
+}
+function saveTabs(tabs) {
+  localStorage.setItem('sj_tabs', JSON.stringify(tabs));
+}
+function getAllTabs() {
+  return [...BUILTIN_TABS, ...loadTabs()];
+}
+
+function renderTabs() {
+  const bar = document.getElementById('tabBar');
+  const all = getAllTabs();
+  // Only render items with dest=tab (or no dest — backward compat)
+  const tabItems = all.filter(t => !t.dest || t.dest === 'tab');
+  let html = '';
+  tabItems.forEach(t => {
+    const cls = (t.id === activeTab) ? 'sj-tab active' : 'sj-tab';
+    const lock = t.locked ? '<span class="tab-lock">\u25CF</span>' : '';
+    const remove = t.locked ? '' : '<span class="tab-remove" onclick="event.stopPropagation();removeTab(\'' + t.id + '\')">\u2715</span>';
+    const colorAttr = t.color ? ' data-color="' + t.color + '"' : '';
+    html += '<button class="' + cls + '"' + colorAttr + ' data-tab="' + t.id + '" onclick="switchToTab(\'' + t.id + '\',this)">' +
+      '<span class="tab-icon">' + t.icon + '</span>' +
+      lock + t.name + remove +
+      '<span class="tab-sub">' + t.sub + '</span></button>';
+  });
+  html += '<button class="plus-btn" onclick="openPathModal()" title="Add Masterpiece">+</button>';
+  html += '<button class="qr-icon-btn" onclick="openQRModal()" title="Generate QR code">QR</button>';
+  bar.innerHTML = html;
+  const btn = bar.querySelector('[data-tab="' + activeTab + '"]');
+  if (btn) { bar.querySelectorAll('.sj-tab').forEach(t => t.classList.remove('active')); btn.classList.add('active'); }
+}
+
+function renderNavMasterpieces() {
+  const all = loadTabs().filter(t => t.dest === 'nav');
+  const container = document.getElementById('navMasterpieces');
+  if (!container) return;
+  if (all.length === 0) { container.innerHTML = ''; return; }
+  let html = '';
+  all.forEach(t => {
+    html += '<button type="button" class="item" data-nav="mp-' + t.id + '" onclick="navClickMasterpiece(\'' + t.id + '\',this)">' + t.icon + ' ' + t.name + '</button>';
+  });
+  container.innerHTML = html;
+}
+
+// window.activeHook — set by tab modules, checked by sendChat()
+window.activeHook = null;
+
+function switchToTab(tabId, el) {
+  activeTab = tabId;
+  document.querySelectorAll('#tabBar .sj-tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+
+  // ALL tab modules share panel-chat. Workspace survives.
+  // The ONLY thing that changes: which endpoint sendChat() routes to.
+  // Like FreedomNow persona tabs — same chat, different voice.
+  document.querySelectorAll('.workspace > .tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-chat').classList.add('active');
+
+  const tabs = getAllTabs();
+  const tab = tabs.find(t => t.id === tabId) || BUILTIN_TABS.find(t => t.id === tabId);
+  window.activeHook = (tab && tab.hook) ? tab.hook : null;
+  loadHistory(); // rebuild chat from this tab's session
+}
+
+function removeTab(tabId) {
+  const tabs = loadTabs().filter(t => t.id !== tabId);
+  saveTabs(tabs);
+  if (activeTab === tabId) activeTab = 'local-aila';
+  renderTabs();
+}
+
+// ── PATH MODAL ────────────────────────────────────────────────
+let selectedColor = 'orange';
+let selectedDest = 'tab';
+
+function pickColor(el) {
+  document.querySelectorAll('.color-box').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedColor = el.getAttribute('data-c');
+}
+function pickDest(el) {
+  document.querySelectorAll('.dest-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedDest = el.getAttribute('data-dest');
+}
+
+
+function addMasterpiece() {
+  let path = document.getElementById('pathInput').value.trim();
+  const errEl = document.getElementById('pathError');
+  if (!path) { errEl.textContent = 'Path is empty.'; return; }
+  // Strip quotes Windows Explorer adds when copying paths
+  path = path.replace(/^["']|["']$/g, '');
+  if (!path.toLowerCase().endsWith('.py')) { errEl.textContent = 'Must point to a .py file.'; return; }
+
+  // Ask simplejack.py to read the TAB hook from the file
+  fetch(API + '/api/read_tab_hook', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: path })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) { errEl.textContent = data.error; return; }
+    // data = { id, name, sub, icon, hook_endpoint }
+    const dest = selectedDest || 'tab';
+    const color = selectedColor || 'orange';
+    const saved = loadTabs();
+    if (saved.find(t => t.id === data.id)) { errEl.textContent = 'Already added.'; return; }
+    saved.push({
+      id: data.id, name: data.name, sub: data.sub,
+      icon: data.icon || '\uD83D\uDD27', path: path,
+      hook: data.hook, color: color, dest: dest
+    });
+    saveTabs(saved);
+    closePathModal();
+    renderTabs();
+    renderNavMasterpieces();
+    // Append to chat
+    const log = document.getElementById('chatLog');
+    const card = document.createElement('div');
+    card.className = 'bubble aila';
+    card.innerHTML = '<div class="who">AILA</div><div class="body">Loaded: <strong>' + data.name + '</strong>\n' + data.sub + '\nDestination: ' + dest.toUpperCase() + ' | Accent: ' + color + '\nPath: ' + path + '</div>';
+    log.appendChild(card);
+    log.scrollTop = log.scrollHeight;
+  })
+  .catch(e => {
+    errEl.textContent = 'Cannot reach simplejack.py — is it running?';
+  });
+}
+
+// Enter in modal submits
+document.getElementById('pathInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); addMasterpiece(); }
+  if (e.key === 'Escape') closePathModal();
+});
+
+// ── RAIL NAVIGATION ──────────────────────────────────────────
+// ── MOBILE DRAWER (2026-08-23) — open/close the fallen-away rail ──
+function toggleRail(force) {
+  const rail = document.querySelector('.rail');
+  const bd = document.getElementById('railBackdrop');
+  if (!rail || !bd) return;
+  const open = (typeof force === 'boolean') ? force : !rail.classList.contains('open');
+  rail.classList.toggle('open', open);
+  bd.style.display = open ? 'block' : 'none';
+}
+
+function navClick(nav, el) {
+  document.querySelectorAll('.rail .nav, .rail #navMasterpieces .item').forEach(n => n.classList.remove('active'));
+  toggleRail(false); // mobile: choosing a destination closes the drawer
+  el.classList.add('active');
+  document.querySelectorAll('.workspace > .tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + nav).classList.add('active');
+}
+
+function navClickMasterpiece(id, el) {
+  document.querySelectorAll('.rail .nav, .rail #navMasterpieces .item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  // Create or show the masterpiece panel
+  let panel = document.getElementById('panel-mp-' + id);
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.className = 'tab-panel';
+    panel.id = 'panel-mp-' + id;
+    panel.innerHTML = '<div class="chat-log"><h2 style="font-family:var(--display);color:var(--orange);text-transform:uppercase;letter-spacing:0.04em">Loading...</h2></div>';
+    document.getElementById('workspace').appendChild(panel);
+    // Load content from the masterpiece's render_html()
+    const tabs = loadTabs();
+    const mp = tabs.find(t => t.id === id);
+    const modulePath = mp ? mp.path : '';
+    fetch(API + '/api/render_module', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({path: modulePath}) })
+      .then(r => r.json())
+      .then(data => {
+        if (data.html) panel.innerHTML = data.html;
+        else if (data.error) panel.innerHTML = '<div class="chat-log"><p style="color:var(--red)">' + esc(data.error) + '</p></div>';
+        else panel.innerHTML = '<div class="chat-log"><p style="color:var(--muted)">No render data returned.</p></div>';
+      })
+      .catch(e => { panel.innerHTML = '<div class="chat-log"><p style="color:var(--muted)">simplejack.py not reachable.</p></div>'; });
+  }
+  document.querySelectorAll('.workspace > .tab-panel').forEach(p => p.classList.remove('active'));
+  panel.classList.add('active');
+}
+
+// ── RSVP REASONING TRACE ENGINE — ORP-based ──────────────────
+// THE FEATURE. Single focus word. Rust ORP. White letters.
+// Phase 1: Reasoning streams in real-time, one word at a time.
+// Phase 2: Backend says done → prints "DONE" → RSVP renders the full
+//          response at speed while simultaneously writing to narration.
+//          User reads and hears the answer at the same time.
+let _rsvpActive = false;
+let _rsvpPaused = false;
+let _rsvpTimer = null;
+let _rsvpWordQueue = [];
+let _rsvpDisplayed = [];
+let _rsvpPollId = null;
+let _rsvpMinimized = false;
+let _rsvpBubbleId = null;
+let _rsvpWordCount = 0;
+let _rsvpLastLen = 0;      // dedup: tracks processed char count
+let _rsvpFullText = '';     // accumulates reasoning for trace
+let _rsvpPhase = 'reasoning'; // 'reasoning' | 'response' | 'done'
+let _rsvpNarrationSent = 0; // chars of narration already sent
+let _rsvpBubbleEl = null;  // reference to the bubble DOM element containing RSVP
+let _rsvpReplyData = null; // stores {replyText, toolsUsed, model, turns} for final bubble
+
+// Scroll chat log to bottom — called after RSVP renders
+function _rsvpScrollLog() {
+  const log = document.getElementById('chatLog');
+  if (log) log.scrollTop = log.scrollHeight;
+}
+
+// Ctrl+Mouse wheel zoom — chrome (sidebar, header, input) grows and stays pinned to edges,
+// workspace shrinks. Like Zoom, like Hermes, like every app.
+let _zoomLevel = 100;
+document.addEventListener('wheel', (e) => {
+  if (!e.ctrlKey) return;
+  e.preventDefault();
+  _zoomLevel += (e.deltaY > 0 ? -5 : 5);
+  _zoomLevel = Math.max(60, Math.min(180, _zoomLevel));
+  const scale = (_zoomLevel / 100);
+  // Zoom chrome elements — they physically grow in layout, squeezing the workspace
+  const rail = document.querySelector('.rail');
+  const tabBar = document.querySelector('.tab-bar');
+  const inputArea = document.querySelector('.input-area');
+  if (rail) rail.style.zoom = scale;
+  if (tabBar) tabBar.style.zoom = scale;
+  if (inputArea) inputArea.style.zoom = scale;
+  // Chat text also scales (bigger text in the now-smaller workspace)
+  const chatLog = document.getElementById('chatLog');
+  if (chatLog) chatLog.style.fontSize = scale + 'rem';
+}, { passive: false });
+
+// Find RSVP elements inside the current bubble host
+function _rsvpEl(suffix) {
+  return document.getElementById('rsvp' + suffix + (_rsvpBubbleId ? 'Bubble' : ''));
+}
+
+// Calculate ORP index for a word
+function _rsvpOrpIndex(word) {
+  const wl = word.length;
+  if (wl <= 1) return 0;
+  if (wl <= 5) return 1;
+  if (wl <= 9) return 2;
+  if (wl <= 13) return 3;
+  return 4;
+}
+
+// Calculate delay multiplier based on word characteristics
+function _rsvpDelayMultiplier(word) {
+  const last = word[word.length - 1];
+  if (last === '.' || last === '!' || last === '?') return 2.0;
+  if (last === ',' || last === ';' || last === ':' || last === '\u2014') return 1.3;
+  if (word.length > 10) return 1.1;
+  return 1.0;
+}
+
+function rsvpStart(reasoningText) {
+  if (!reasoningText || reasoningText.length < 3) return;
+  const display = _rsvpEl('Display');
+  if (!display) return;
+  _rsvpActive = true;
+  _rsvpPaused = false;
+  _rsvpMinimized = false;
+
+  // DEDUP: only process NEW text since last poll
+  const newText = reasoningText.substring(_rsvpLastLen);
+  _rsvpLastLen = reasoningText.length;
+  _rsvpFullText = reasoningText;
+
+  if (newText.length === 0) return;
+
+  const newWords = newText.split(/\s+/).filter(w => w.length > 0);
+  newWords.forEach(w => {
+    _rsvpWordCount++;
+    _rsvpWordQueue.push({
+      seq: _rsvpWordCount,
+      word: w,
+      orp_index: _rsvpOrpIndex(w),
+      orp_char: w[_rsvpOrpIndex(w)] || '',
+      pre: w.substring(0, _rsvpOrpIndex(w)),
+      post: w.substring(_rsvpOrpIndex(w) + 1),
+      delay_multiplier: _rsvpDelayMultiplier(w),
+      length: w.length
+    });
+  });
+
+  if (!_rsvpTimer) _rsvpNext();
+}
+
+// Called when reasoning is complete and we have the final reply.
+// 1. Print "DONE" in the focus display
+// 2. RSVP-render the reply at high WPM
+// 3. When RSVP finishes, REPLACE the RSVP bubble with a normal AILA bubble
+// Narration is handled by Python backend — no double-narrate.
+function rsvpShowReply(replyText, toolsUsed, model, turns) {
+  _rsvpPhase = 'response';
+  _rsvpReplyData = { replyText, toolsUsed, model, turns };
+  _rsvpFullResponse = replyText + (toolsUsed && toolsUsed.length ? '\n\nTools: ' + toolsUsed.map(t => t.name).join(', ') : '');
+  const display = _rsvpEl('Display');
+  if (!display) { _rsvpPhase = 'done'; return; }
+
+  // Stop reasoning polling if still running
+  if (_rsvpPollId) { clearInterval(_rsvpPollId); _rsvpPollId = null; }
+  // Stop any existing timer
+  if (_rsvpTimer) { clearTimeout(_rsvpTimer); _rsvpTimer = null; }
+  _rsvpWordQueue = [];
+  _rsvpWordCount = 0;
+  _rsvpActive = true;
+  _rsvpPaused = false;
+
+  // 1. Show "DONE" in rust, big
+  display.innerHTML = '<div class="rsvp-done-text">DONE</div>';
+
+  // 2. After a brief beat, RSVP-render the reply words
+  setTimeout(() => {
+    const words = _rsvpFullResponse.split(/\s+/).filter(w => w.length > 0);
+    words.forEach(w => {
+      _rsvpWordCount++;
+      _rsvpWordQueue.push({
+        seq: _rsvpWordCount,
+        word: w,
+        orp_index: _rsvpOrpIndex(w),
+        orp_char: w[_rsvpOrpIndex(w)] || '',
+        pre: w.substring(0, _rsvpOrpIndex(w)),
+        post: w.substring(_rsvpOrpIndex(w) + 1),
+        delay_multiplier: _rsvpDelayMultiplier(w),
+        length: w.length
+      });
+    });
+
+    // Clear "DONE" and start RSVP rendering
+    display.innerHTML = '';
+    _rsvpNext();
+  }, 600);
+}
+
+function rsvpStop() {
+  _rsvpActive = false;
+  if (_rsvpTimer) { clearTimeout(_rsvpTimer); _rsvpTimer = null; }
+  if (_rsvpPollId) { clearInterval(_rsvpPollId); _rsvpPollId = null; }
+  if (_rsvpWordQueue.length > 0) {
+    _rsvpWordQueue.forEach(w => _rsvpShowWord(w));
+    _rsvpWordQueue = [];
+  }
+  _rsvpPhase = 'done';
+  _rsvpBubbleId = null;
+}
+
+// Replace the RSVP bubble with a clean normal AILA chat bubble.
+// RSVP disappears, normal chat history remains.
+function _rsvpFinalizeBubble() {
+  if (!_rsvpBubbleEl || !_rsvpReplyData) return;
+  const d = _rsvpReplyData;
+  const bubble = _rsvpBubbleEl;
+
+  // Build tools row
+  let toolsHtml = '';
+  if (d.toolsUsed && d.toolsUsed.length) {
+    toolsHtml = '<div class="tools-row"><strong>Tools (' + d.toolsUsed.length + '):</strong> ';
+    toolsHtml += d.toolsUsed.map(t => {
+      const a = t.args || {};
+      const arg = a.command || a.path || '';
+      return '<span class="tool-chip">' + esc(t.name) + (arg ? ': ' + String(arg).substring(0,40) : '') + '</span>';
+    }).join('');
+    toolsHtml += '</div>';
+  }
+
+  // Replace bubble content with normal AILA bubble
+  bubble.innerHTML =
+    '<div class="who">AILA <span class="model-tag">[' + esc(d.model || '') + '] · ' + (d.turns || 0) + ' turn(s)</span></div>' +
+    '<div class="body">' + esc(d.replyText || '') + toolsHtml + '</div>';
+
+  // Clean up state
+  _rsvpBubbleId = null;
+  _rsvpBubbleEl = null;
+  _rsvpReplyData = null;
+
+  // Scroll to bottom
+  _rsvpScrollLog();
+}
+
+function rsvpPauseResume() {
+  _rsvpPaused = !_rsvpPaused;
+  const pauseBtn = _rsvpEl('PauseBubble');
+  if (pauseBtn) pauseBtn.innerText = _rsvpPaused ? 'RESUME' : 'PAUSE';
+  if (!_rsvpPaused && _rsvpActive) _rsvpNext();
+}
+
+function rsvpMinimizeMaximize() {
+  _rsvpMinimized = !_rsvpMinimized;
+  const display = _rsvpEl('Display');
+  const btn = _rsvpEl('MinMaxBubble');
+  if (display) display.style.display = _rsvpMinimized ? 'none' : '';
+  if (btn) btn.innerText = _rsvpMinimized ? '\u25BC' : '\u25B2';
+}
+
+// Render a single word with ORP highlighting — ONLY the focus word, no past words
+function _rsvpShowWord(token) {
+  const display = _rsvpEl('Display');
+  if (!display) return;
+
+  // REPLACE the current word — only ONE word visible at a time
+  display.innerHTML = '';
+
+  const el = document.createElement('span');
+  el.className = 'rsvp-word current';
+  el.dataset.seq = token.seq;
+  el.dataset.word = token.word;
+  el.dataset.orp = token.orp_char;
+  el.dataset.mult = token.delay_multiplier;
+
+  if (token.pre) {
+    const preSpan = document.createElement('span');
+    preSpan.className = 'rsvp-pre';
+    preSpan.textContent = token.pre;
+    el.appendChild(preSpan);
+  }
+  if (token.orp_char) {
+    const orpSpan = document.createElement('span');
+    orpSpan.className = 'rsvp-orp';
+    orpSpan.textContent = token.orp_char;
+    el.appendChild(orpSpan);
+  }
+  if (token.post) {
+    const postSpan = document.createElement('span');
+    postSpan.className = 'rsvp-post';
+    postSpan.textContent = token.post;
+    el.appendChild(postSpan);
+  }
+
+  display.appendChild(el);
+  // Keep chat scrolled to bottom during RSVP rendering
+  _rsvpScrollLog();
+}
+
+// Core timer loop — respects per-word delay multipliers
+function _rsvpNext() {
+  if (!_rsvpActive || _rsvpPaused || _rsvpWordQueue.length === 0) {
+    // Queue is empty — if we were rendering the response, replace RSVP bubble with normal bubble
+    if (_rsvpPhase === 'response' && _rsvpWordQueue.length === 0) {
+      _rsvpPhase = 'done';
+      _rsvpActive = false;
+      // Replace the RSVP bubble with a clean normal AILA bubble
+      _rsvpFinalizeBubble();
+    }
+    return;
+  }
+  const wpmEl = _rsvpEl('WpmBubble');
+  const wpm = parseInt(wpmEl ? wpmEl.value : 600) || 600;
+  const baseDelay = 60000 / wpm;
+  const token = _rsvpWordQueue.shift();
+  _rsvpShowWord(token);
+  // Floor: never faster than 60ms so each word is perceivable
+  const delay = Math.max(60, Math.round(baseDelay * (token.delay_multiplier || 1.0)));
+  _rsvpTimer = setTimeout(() => _rsvpNext(), delay);
+}
+
+let _rsvpFullResponse = ''; // set by rsvpShowReply for final trace display
+
+// ── RSVP STREAMING POLL — fetches reasoning tokens from backend ──
+function rsvpBeginStream(requestId) {
+  _rsvpActive = false;
+  if (_rsvpTimer) { clearTimeout(_rsvpTimer); _rsvpTimer = null; }
+  if (_rsvpPollId) { clearInterval(_rsvpPollId); _rsvpPollId = null; }
+  _rsvpWordQueue = [];
+  _rsvpDisplayed = [];
+  _rsvpWordCount = 0;
+  _rsvpLastLen = 0;
+  _rsvpFullText = '';
+  _rsvpFullResponse = '';
+  _rsvpPhase = 'reasoning';
+  _rsvpNarrationSent = 0;
+  _rsvpPollId = setInterval(() => {
+    fetch(API + '/api/reasoning/' + requestId)
+      .then(r => r.json())
+      .then(data => {
+        if (data.reasoning && data.reasoning.length > 0) {
+          rsvpStart(data.reasoning);
+          // FULL trace renders live below the RSVP display — reading
+          // speed no longer caps what is visible (Trent 2026-08-23).
+          const lt = document.getElementById('rsvpLiveTrace');
+          if (lt) { lt.textContent = data.reasoning; lt.scrollTop = lt.scrollHeight; }
+        }
+        if (data.status === 'done') {
+          // Reasoning polling done — stop polling, RSVP will finish the queue
+          clearInterval(_rsvpPollId);
+          _rsvpPollId = null;
+          // Don't call rsvpStop here — the main status poll will call rsvpShowReply
+          // when it gets the final reply. Just let the reasoning queue drain.
+        }
+      })
+      .catch(() => {});
+  }, 300);
+}
+
+// ── RSVP init — activate RSVP panel inside thinking bubble ─────
+// Replaces the 3-dot thinking indicator with the ORP RSVP display.
+function rsvpActivateInBubble(bubbleEl, requestId) {
+  const bodyEl = bubbleEl.querySelector('.body');
+  if (!bodyEl) return;
+  bodyEl.innerHTML = '';
+  _rsvpBubbleId = 'Bubble';
+  _rsvpBubbleEl = bubbleEl; // save reference for final replacement
+
+  const rsvpEl = document.createElement('div');
+  rsvpEl.className = 'rsvp-container active';
+  rsvpEl.style.margin = '0';
+  rsvpEl.style.border = 'none';
+  rsvpEl.style.background = 'transparent';
+  rsvpEl.innerHTML = '' +
+    '<div class="rsvp-header" style="border-color:var(--border)">' +
+      '<span class="rsvp-label" style="color:var(--rust)">' +
+        '<span class="dot" style="background:var(--rust)"></span>REASONING TRACE' +
+      '</span>' +
+      '<div class="rsvp-controls">' +
+        '<label>WPM</label>' +
+        '<input type="range" id="rsvpWpmBubble" min="60" max="600" value="600" step="10" ' +
+          'oninput="document.getElementById(\'rsvpWpmBubbleVal\').innerText=this.value" ' +
+          'style="width:60px">' +
+        '<span class="rsvp-wpm" id="rsvpWpmBubbleVal">600</span>' +
+        '<button onclick="rsvpPauseResume()" id="rsvpPauseBubble">PAUSE</button>' +
+        '<button onclick="rsvpMinimizeMaximize()" id="rsvpMinMaxBubble">\u25B2</button>' +
+        '<button onclick="stopAILA()" style="border-color:var(--red);color:var(--red)">STOP</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="rsvp-display" id="rsvpDisplayBubble"></div>' +
+    '<pre class="rsvp-live-trace" id="rsvpLiveTrace"></pre>';
+  bodyEl.appendChild(rsvpEl);
+  _rsvpScrollLog(); // snap to bottom so user sees the reasoning trace immediately
+  rsvpBeginStream(requestId);
+}
+
+
+function treeToggle(el) {
+  const parent = el.closest('li');
+  const children = parent.querySelector(':scope > ul');
+  if (!children) return;
+  if (children.classList.contains('open')) {
+    children.classList.remove('open');
+    el.innerHTML = '&#9656;';
+  } else {
+    children.classList.add('open');
+    el.innerHTML = '&#9662;';
+  }
+}
+
+// ── FIRST-RUN SETUP ─────────────────────────────────────────
+// Shown when no provider key AND no local Ollama models exist.
+// Get access key → provider key page in default browser.
+// Test key → REAL HTTP call to the provider (never fake).
+function checkSetupStatus() {
+  fetch(API + '/api/setup_status')
+    .then(r => r.json())
+    .then(data => {
+      const overlay = document.getElementById('setupOverlay');
+      if (!overlay) return;
+      if (data.can_chat) {
+        overlay.style.display = 'none';
+      } else {
+        overlay.style.display = 'flex';
+        const res = document.getElementById('setupResult');
+        res.innerText = 'Nothing configured yet. One key and you are live.';
+      }
+    })
+    .catch(() => { /* brain not up yet — retry on next health check */ });
+}
+
+function openKeyPage() {
+  const provider = document.getElementById('setupProvider').value;
+  const urls = {
+    openrouter: 'https://openrouter.ai/settings/keys',
+    nvidia: 'https://build.nvidia.com',
+    zai: 'https://chat.z.ai/login',
+    zenmux: 'https://zenmux.ai/settings',
+    github_models: 'https://github.com/settings/tokens/new?scopes=read:user'
+  };
+  const hint = document.getElementById('keyUrlHint');
+  hint.innerText = 'Opening ' + urls[provider] + ' in your browser…';
+  window.open(urls[provider], '_blank');
+}
+
+function testKey() {
+  const provider = document.getElementById('setupProvider').value;
+  const api_key = document.getElementById('setupKey').value.trim();
+  const res = document.getElementById('setupResult');
+  if (api_key.length < 8) { res.innerText = 'Key looks too short. Paste the full key.'; return; }
+  res.innerText = 'Testing ' + provider + '…';
+  fetch(API + '/api/test_key', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider: provider, api_key: api_key })
+  })
+    .then(r => r.json())
+    .then(data => {
+      res.innerText = data.message || (data.error || 'test failed');
+      if (data.ok) {
+        res.style.color = '#7fd8a8';
+        document.getElementById('setupKey').style.borderColor = '#2e8b57';
+      } else {
+        res.style.color = '#ff9d9d';
+        document.getElementById('setupKey').style.borderColor = '#d97834';
+      }
+    })
+    .catch(err => { res.innerText = 'Could not reach the brain: ' + err; });
+}
+
+function saveKey() {
+  const provider = document.getElementById('setupProvider').value;
+  const api_key = document.getElementById('setupKey').value.trim();
+  const res = document.getElementById('setupResult');
+  if (api_key.length < 8) { res.innerText = 'Key looks too short. Paste the full key.'; return; }
+  res.innerText = 'Saving…';
+  fetch(API + '/api/save_key', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider: provider, api_key: api_key })
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        res.innerText = data.message + ' Reloading models…';
+        res.style.color = '#7fd8a8';
+        setTimeout(() => {
+          document.getElementById('setupOverlay').style.display = 'none';
+          refreshAll();
+          checkAILAHealth();
+        }, 700);
+      } else {
+        res.innerText = data.error || 'save failed';
+        res.style.color = '#ff9d9d';
+      }
+    })
+    .catch(err => { res.innerText = 'Could not reach the brain: ' + err; });
+}
+
+// ── WIPE TRANSCRIPT (nuclear button, double-click) ────────────
+async function wipeTranscript() {
+  if (!confirm('Wipe the entire raw transcript? Fresh session. Archive is kept.')) return;
+  const btn = document.querySelector('.nuke-btn');
+  if (btn) { btn.disabled = true; }
+  try {
+    const resp = await fetch(API + '/api/wipe_transcript', { method: 'POST' });
+    const data = await resp.json();
+    const log = document.getElementById('chatLog');
+    if (log) {
+      const div = document.createElement('div');
+      div.className = 'bubble aila';
+      div.innerHTML = '<span class="who">TRANSCRIPT WIPED</span>' +
+        (data.ok ? (data.wiped_lines + ' lines archived — fresh session.') : ('failed: ' + (data.error || 'unknown')));
+      log.appendChild(div); log.scrollTop = log.scrollHeight;
+    }
+  } catch (e) {
+    alert('wipe error: ' + e);
+  } finally {
+    if (btn) { btn.disabled = false; }
+  }
+}
+
+// ── AILA HEALTH CHECK ─────────────────────────────────────────
+function checkAILAHealth() {
+  const pill = document.getElementById('statusPill');
+  const text = document.getElementById('statusText');
+  const mstat = document.getElementById('modelStatus');
+    fetch(API + '/api/health')
+    .then(r => r.json())
+    .then(data => {
+      if (data.hub === 'up') {
+        pill.classList.remove('down');
+        text.innerText = data.active_model || 'AILA';
+        if (mstat) mstat.innerText = 'Model: ' + (data.active_model || 'unknown');
+        if (mstat) mstat.className = 'status on';
+      } else {
+        pill.classList.add('down');
+        text.innerText = 'BRAIN DOWN';
+        if (mstat) { mstat.innerText = 'Engine: Model Hub offline'; mstat.className = 'status'; }
+      }
+    })
+    .catch(() => {
+      pill.classList.add('down');
+      text.innerText = 'SERVER DOWN';
+      if (mstat) { mstat.innerText = 'simplejack.py not running'; mstat.className = 'status'; }
+    });
+}
+
+function refreshAll() {
+  checkAILAHealth(); loadModels(); refreshStack();
+  // 2026-08-23: refresh is status-only now. The app never launches or kills
+  // processes — the Model Hub owns the engine side. Re-check health a few
+  // seconds later so the UI reflects reality.
+  fetch(API + '/api/refresh_servers', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'
+  })
+  .then(r => r.json())
+  .then(d => {
+    setTimeout(checkAILAHealth, 4000);
+    setTimeout(loadModels, 4000);
+  })
+  .catch(() => {});
+}
+
+// ── SCROLL TO BOTTOM BUTTON ──
+function scrollChatBottom() {
+  const log = document.getElementById('chatLog');
+  if (log) {
+    log.scrollTop = log.scrollHeight;
+    // flash to confirm (2026-07-31 fix — old code pointed at #log, a dead id)
+    log.style.outline = '2px solid var(--orange)';
+    setTimeout(() => { log.style.outline = ''; }, 600);
+  }
+}
+
+// ── CHAT SEARCH — highlights matching bubbles, scrolls to first match ──
+let _lastSearchQuery = '';
+function searchChat(query) {
+  const log = document.getElementById('chatLog');
+  if (!log) return;
+  // Strip old highlights from bubble backgrounds
+  log.querySelectorAll('.bubble').forEach(b => b.style.outline = '');
+  _lastSearchQuery = query;
+  if (!query || query.length < 2) return;
+  const lower = query.toLowerCase();
+  const bubbles = log.querySelectorAll('.bubble');
+  let firstMatch = null;
+  bubbles.forEach(b => {
+    const text = b.textContent.toLowerCase();
+    if (text.includes(lower)) {
+      b.style.outline = '2px solid var(--orange)';
+      if (!firstMatch) firstMatch = b;
+    }
+  });
+  if (firstMatch) firstMatch.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
+// ── MODEL SELECTOR ────────────────────────────────────────────
+function loadModels() {
+  fetch(API + '/api/models')
+    .then(r => r.json())
+    .then(data => {
+      const sel = document.getElementById('activeProvider');
+      const active = data.active || '';
+      let html = '';
+
+      // THE HUB CONTRACT — SimpleJack sees NOTHING but the hub's active models.
+      // No engine groups, no Ollama menu, no hardcoded lists. GET /v1/models
+      // on 8123 is the whole truth. Chosen 2026-08-20 (Trent's order).
+      const eng = (data.engines || {}).hub;
+      if (eng && eng.models && eng.models.length) {
+        const tag = eng.has_key ? '' : ' (hub down)';
+        html += '<optgroup label="' + esc(eng.name) + tag + '">';
+        (eng.models || []).forEach(m => {
+          html += '<option value="' + esc(m) + '"' + (m===active?' selected':'') + '>' + esc(m) + '</option>';
+        });
+        html += '</optgroup>';
+      }
+
+      if (!html) html = '<option value="">Model Hub offline</option>';
+      sel.innerHTML = html;
+    })
+    .catch(() => {});
+}
+
+function switchModel() {
+  const model = document.getElementById('activeProvider').value;
+  fetch(API + '/api/switch_model', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({model: model})
+  }).then(r => r.json()).then(() => checkAILAHealth()).catch(() => {});
+}
+
+// ── STACK PANEL ────────────────────────────────────────────────
+function refreshStack() {
+  fetch(API + '/api/stack')
+    .then(r => r.json())
+    .then(data => {
+      ['stackDepthRail','stackDepthInline','stackDepthFull'].forEach(id => {
+        const e = document.getElementById(id); if (e) e.innerText = data.depth;
+      });
+      ['stackCurrentRail','stackCurrentInline','stackCurrentFull'].forEach(id => {
+        const e = document.getElementById(id); if (e) e.innerText = data.current;
+      });
+      const pv = document.getElementById('stackQueuePreview');
+      if (pv && data.queue_preview && data.queue_preview.length) {
+        pv.innerHTML = '<div class="stack-row" style="margin-top:8px"><span class="label">NEXT UP</span></div>' +
+          data.queue_preview.map((cmd, i) => '<div class="stack-preview" style="color:var(--text);padding-left:8px;border-left:2px solid var(--orange);margin-top:4px">' + (i+1) + '. ' + esc(cmd.substring(0,120)) + '</div>').join('');
+      } else if (pv) {
+        pv.innerHTML = '<div class="stack-row" style="margin-top:8px;color:var(--muted)"><span>(queue empty)</span></div>';
+      }
+    })
+    .catch(() => {});
+}
+
+function stackGo() {
+  fetch(API + '/api/converse', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({message: 'run the stack', session_id: 'default'})
+  }).then(() => refreshStack()).catch(() => {});
+}
+function stackPause() {
+  fetch(API + '/api/converse', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({message: 'pause the stack', session_id: 'default'})
+  }).then(() => refreshStack()).catch(() => {});
+}
+
+// ── CHAT (Agent Loop — same as v1, improved) ─────────────────
+function sendChat() {
+  const input = document.getElementById('promptInput');
+  const prompt = input.value.trim();
+  if (!prompt) return;
+
+  taskCounter++;
+  const log = document.getElementById('chatLog');
+
+  // User bubble
+  const userBubble = document.createElement('div');
+  userBubble.className = 'bubble user';
+  userBubble.innerHTML = '<div class="who">Trent</div><div class="body">' + esc(prompt) + '</div>';
+  log.appendChild(userBubble);
+  input.value = '';
+  log.scrollTop = log.scrollHeight;
+
+  // AILA thinking bubble
+  const ailaBubble = document.createElement('div');
+  ailaBubble.className = 'bubble aila';
+  ailaBubble.id = 'aila-thinking-' + taskCounter;
+  ailaBubble.innerHTML = '<div class="who">AILA <span class="model-tag">thinking...</span><button class="stop-btn" onclick="stopAILA()">STOP</button></div><div class="body"><div class="typing"><span></span><span></span><span></span></div></div>';
+  log.appendChild(ailaBubble);
+  log.scrollTop = log.scrollHeight;
+
+  // MODULE HOOK ROUTING — if activeHook is set (tab module like Agent AILA),
+  // route to the module's endpoint. Same async pattern as converse.
+  // Same chat log. Same workspace. Different brain behind the curtain.
+  if (window.activeHook) {
+    fetch(API + window.activeHook, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: prompt})
+    })
+    .then(r => { if (!r.ok) throw new Error('Server ' + r.status); return r.json(); })
+    .then(data => {
+      if (!data.success && data.error) {
+        ailaBubble.innerHTML = '<div class="who" style="color:var(--yellow)">AILA</div><div class="body">' + esc(data.error) + '</div>';
+        return;
+      }
+      // Async: poll for result same as converse
+      if (data.request_id) {
+        const reqId = data.request_id;
+        rsvpActivateInBubble(ailaBubble, reqId);
+        let polls = 0;
+        const maxPolls = 7200;
+        let errs = 0;
+        const interval = setInterval(async () => {
+          polls++;
+          if (polls > maxPolls) {
+            clearInterval(interval);
+            ailaBubble.innerHTML = '<div class="who" style="color:var(--yellow)">AILA</div><div class="body">Timed out.</div>';
+            return;
+          }
+          try {
+            const sr = await fetch(API + '/api/status/' + reqId);
+            if (!sr.ok) throw new Error('HTTP ' + sr.status);
+            const sd = await sr.json();
+            errs = 0;
+            // RSVP: feed reasoning tokens while AILA thinks
+            if (sd.reasoning && sd.reasoning.length > 0) {
+              rsvpStart(sd.reasoning);
+            } else if (sd.status === 'processing' || sd.status === 'working') {
+              // No reasoning yet — show thinking indicator in RSVP
+              if (!_rsvpActive) rsvpStart('thinking');
+            }
+            if (sd.status === 'done') {
+              clearInterval(interval);
+              rsvpStop();
+              ailaBubble.innerHTML = '<div class="who">AILA <span class="model-tag">[' + esc(sd.model || '') + '] · ' + (sd.turns || 0) + ' turn(s)</span></div>' +
+                '<div class="body">' + esc(sd.reply || '') + rsvpTraceDropdown(sd.reasoning || '') + '</div>';
+              log.scrollTop = log.scrollHeight;
+            } else if (sd.status === 'error') {
+              clearInterval(interval);
+              rsvpStop();
+              ailaBubble.innerHTML = '<div class="who" style="color:var(--red)">AILA</div><div class="body">' + esc(sd.reply || 'Error') + '</div>';
+            }
+          } catch(pe) {
+            errs++;
+            if (errs > 3) {
+              clearInterval(interval);
+              rsvpStop();
+              ailaBubble.innerHTML = '<div class="who" style="color:var(--red)">Poll Error</div><div class="body">' + esc(pe.message || String(pe)) + '</div>';
+            }
+          }
+        }, 500);
+      } else if (data.response) {
+        // Sync response (fallback)
+        rsvpStop();
+        let html = '<div class="who">AILA</div>';
+        if (data.drift && data.drift.length) {
+          html += '<div class="tool-chip">DRIFT: ' + data.drift.join(', ') + '</div>';
+        }
+        html += '<div class="body">' + esc(data.response) + '</div>';
+        ailaBubble.innerHTML = html;
+        log.scrollTop = log.scrollHeight;
+      }
+    })
+    .catch(e => {
+      ailaBubble.innerHTML = '<div class="who" style="color:var(--red)">Connection Error</div><div class="body">' + esc(e.message || String(e)) + '</div>';
+    });
+    return;
+  }
+
+  // DEFAULT ROUTE — Local AILA via /api/converse
+  fetch(API + '/api/converse', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({message: prompt, session_id: 'default'})
+  })
+  .then(r => { if (!r.ok) throw new Error('Server ' + r.status); return r.json(); })
+  .then(data => {
+    if (!data.success) {
+      ailaBubble.innerHTML = '<div class="who" style="color:var(--yellow)">AILA</div><div class="body">' + esc(data.error || 'Error') + '</div>';
+      return;
+    }
+    const reqId = data.request_id;
+    rsvpActivateInBubble(ailaBubble, reqId);
+    let polls = 0;
+    const maxPolls = 7200;
+    let errs = 0;
+    const interval = setInterval(async () => {
+      polls++;
+      if (polls > maxPolls) {
+        clearInterval(interval);
+        ailaBubble.innerHTML = '<div class="who" style="color:var(--yellow)">AILA</div><div class="body">Timed out. AILA may have already spoken. Check simplejack.log or refresh.</div>';
+        return;
+      }
+      try {
+        const sr = await fetch(API + '/api/status/' + reqId);
+        if (!sr.ok) throw new Error('HTTP ' + sr.status);
+        const sd = await sr.json();
+        errs = 0;
+        if (sd.status === 'done') {
+          clearInterval(interval);
+          rsvpStop();
+          ailaBubble.innerHTML = '<div class="who">AILA <span class="model-tag">[' + esc(sd.model || '') + '] · ' + (sd.turns || 0) + ' turn(s)</span></div>' +
+            '<div class="body">' + esc(sd.reply || '') + rsvpTraceDropdown(sd.reasoning || '') + '</div>';
+          refreshStack();
+        } else if (sd.status === 'working') {
+          // LIVE PROGRESS: update the who-header with tool count, preserve RSVP panel
+          const whoEl2 = ailaBubble.querySelector('.who');
+          if (whoEl2 && sd.tools_used) {
+            const toolNames = sd.tools_used.map(t => t.name).join(' → ');
+            whoEl2.innerHTML = 'AILA <span class="model-tag">[' + esc(sd.model || AILA_MODEL || '') + '] · ' + (sd.turns || 0) + ' turn(s) · ' + esc(toolNames) + '</span><button class="stop-btn" onclick="stopAILA()">STOP</button>';
+          }
+        } else if (sd.status === 'error') {
+          clearInterval(interval);
+          rsvpStop(); // stop reasoning trace
+          ailaBubble.innerHTML = '<div class="who" style="color:var(--red)">AILA</div><div class="body">' + esc(sd.reply || 'Error') + '</div>';
+        } else if (sd.status === 'unknown') {
+          clearInterval(interval);
+          ailaBubble.innerHTML = '<div class="who" style="color:var(--yellow)">AILA</div><div class="body">Request lost — simpleJACK may have restarted. Refresh the page.</div>';
+        }
+      } catch(pe) {
+        errs++;
+        if (errs > 3) {
+          clearInterval(interval);
+          ailaBubble.innerHTML = '<div class="who" style="color:var(--red)">Poll Error</div><div class="body">' + esc(pe.message || String(pe)) + '</div>';
+        }
+      }
+    }, 500);
+  })
+  .catch(e => {
+    ailaBubble.innerHTML = '<div class="who" style="color:var(--red)">Connection Error</div><div class="body">' + esc(e.message || String(e)) + '</div>';
+  });
+  log.scrollTop = log.scrollHeight;
+}
+
+function stopAILA() {
+  fetch(API + '/api/stop', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).catch(()=>{});
+}
+
+// Enter sends, Shift+Enter = newline
+document.getElementById('promptInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+});
+
+// ── UTILS ────────────────────────────────────────────────────
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── QR CODE MODAL ────────────────────────────────────────────
+function openQRModal() {
+  document.getElementById('qrModal').classList.add('open');
+  document.getElementById('qrInput').value = window.location.href;
+  document.getElementById('qrOutput').innerHTML = '';
+  generateQR();
+  setTimeout(() => document.getElementById('qrInput').select(), 100);
+}
+function closeQRModal() {
+  document.getElementById('qrModal').classList.remove('open');
+}
+document.getElementById('qrInput').addEventListener('input', function() { generateQR(); });
+document.getElementById('qrInput').addEventListener('keydown', function(e) { if(e.key==='Escape') closeQRModal(); });
+function generateQR() {
+  const text = document.getElementById('qrInput').value.trim();
+  const out = document.getElementById('qrOutput');
+  if (!text) { out.innerHTML = ''; return; }
+  out.innerHTML = '';
+  try {
+    new QRCode(out, { text: text, width: 220, height: 220, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  } catch(e) { out.innerHTML = '<p style="color:var(--red);font-size:0.8rem">Error: ' + esc(String(e)) + '</p>'; }
+}
+
+// ── HISTORY REBUILD — rolling JSONL scroll, survives restart ──
+// On page load, fetch JSONL and rebuild bubbles with timestamps.
+function loadHistory() {
+  const tabs = getAllTabs();
+  const activeTabData = tabs.find(t => t.id === activeTab) || BUILTIN_TABS.find(t => t.id === activeTab);
+  const sessionId = activeTabData && activeTabData.sessionId ? activeTabData.sessionId : 'default';
+  fetch(API + '/api/history/' + sessionId)
+    .then(r => r.json())
+    .then(entries => {
+      if (!entries || !entries.length) return;
+      const log = document.getElementById('chatLog');
+      log.innerHTML = ''; // clear any existing DOM bubbles
+      // TAIL-ONLY REBUILD (Trent 2026-08-14): the model's live context is the
+      // last N interchanges — the PAGE should mirror that, not redraw the
+      // whole 1000+ entry archive on every boot (that froze the browser for
+      // ~20s: "Page unresponsive Wait/Quit"). The full archive stays in the
+      // JSONL, readable any time. The page draws only the recent tail.
+      // Rebuilt assistant bubbles carry the reasoning-trace dropdown (RSVP LAW).
+      const RECENT = 24; // last 24 user+assistant entries ≈ 12 interchanges
+      const tail = entries.slice(-RECENT);
+      const frag = document.createDocumentFragment();
+      for (const entry of tail) {
+        const role = entry.role;
+        const content = entry.content;
+        const ts = entry.ts || '';
+        if (role === 'user') {
+          const bubble = document.createElement('div');
+          bubble.className = 'bubble user';
+          const tsStr = ts ? '<span class="ts">' + esc(ts.substring(0,19)) + '</span>' : '';
+          bubble.innerHTML = '<div class="who">Trent ' + tsStr + '</div><div class="body">' + esc(content) + '</div>';
+          frag.appendChild(bubble);
+        } else if (role === 'assistant') {
+          const bubble = document.createElement('div');
+          bubble.className = 'bubble aila';
+          const tsStr = ts ? '<span class="ts">' + esc(ts.substring(0,19)) + '</span>' : '';
+          const modelTag = entry.model ? '<span class="model-tag">[' + esc(entry.model) + ']</span>' : '';
+          bubble.innerHTML = '<div class="who">AILA ' + modelTag + tsStr + '</div>' +
+            rsvpTraceDropdown(entry.reasoning || '') +
+            '<div class="body">' + esc(content) + '</div>';
+          frag.appendChild(bubble);
+        }
+      }
+      log.appendChild(frag);
+      log.scrollTop = log.scrollHeight;
+    })
+    .catch(() => {});
+}
+
+// ── REASONING TRACE DROPDOWN (RSVP LAW) — collapsed above the reply ──
+function rsvpTraceDropdown(reasoningText) {
+  if (!reasoningText || reasoningText.trim().length < 3) return '';
+  return '<details class="rsvp-trace-dd"><summary>&#9656; REASONING TRACE (' +
+    reasoningText.trim().split(/\s+/).length + ' words)</summary><pre class="rsvp-trace-body">' +
+    esc(reasoningText.trim()) + '</pre></details>';
+}
+
+// ── READ ALOUD WITH MORPHYTREK (Trent 2026-08-24) ────────────────
+// Highlight any text in the app, right-click, choose READ ALOUD — the
+// words go to morPHYtrek through the same queue pipe the Chrome
+// extension uses (/api/narrate → morphytrek_data/queue → Piper).
+// Walk away and hear it. THE SWITCH governs: no queue folder, no sound.
+(function() {
+  const menu = document.createElement('div');
+  menu.className = 'ra-menu';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.innerHTML = '&#128266; READ ALOUD WITH MORPHYTREK';
+  menu.appendChild(btn);
+  document.body.appendChild(menu);
+  let selText = '';
+  btn.addEventListener('click', async () => {
+    menu.style.display = 'none';
+    if (!selText) return;
+    try {
+      const r = await fetch(API + '/api/narrate', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({text: selText, source: 'readaloud'})
+      });
+      const d = await r.json();
+      // Silent either way — THE SWITCH decides. No error spam in the chat.
+      if (!d.written) console.log('read-aloud: queue folder absent — narration switch is OFF');
+    } catch (e) { console.log('read-aloud failed: ' + (e.message || e)); }
+  });
+  document.addEventListener('contextmenu', (e) => {
+    const s = window.getSelection();
+    selText = s ? s.toString().trim() : '';
+    if (!selText || selText.length < 2) { menu.style.display = 'none'; return; }
+    menu.style.left = Math.min(e.clientX, window.innerWidth - 260) + 'px';
+    menu.style.top = Math.min(e.clientY, window.innerHeight - 70) + 'px';
+    menu.style.display = 'block';
+  });
+  document.addEventListener('click', (e) => {
+    if (!menu.contains(e.target)) menu.style.display = 'none';
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') menu.style.display = 'none';
+  });
+})();
+
+
+// ── BOOT ──────────────────────────────────────────────────────
+renderTabs();
+renderNavMasterpieces();
+checkAILAHealth();
+loadModels();
+refreshStack();
+checkSetupStatus();  // first-run gate — shows overlay if nothing configured
+loadHistory();
+setInterval(checkAILAHealth, 10000);
+setInterval(loadModels, 30000);
+setInterval(refreshStack, 3000);
+</script>
+</body>
+</html>
