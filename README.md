@@ -1,12 +1,10 @@
 <div align="center">
 
-<img src="morphyes-logo.jpg" alt="MorPHYes Mastery" width="220"/>
-
-# SimpleJack
+<img src="docs/banner.png" alt="&amp;simpleJACK — MorPHYes Mastery" width="896"/>
 
 **A complete AI workstation in one folder. No install. No subscription. No phone-home.**
 
-[Buy — $20 USD](SALE.md) · [Setup Guide](README.txt) · [Support the Work](SUPPORT.md)
+[Buy — $20 USD](SALE.md) · [Setup Guide](README.txt) · [Support the Work](SUPPORT.md) · [Contact](#contact)
 
 </div>
 
@@ -59,6 +57,13 @@ e-Transfer, no middlemen, no Stripe. → **[SALE.md](SALE.md)**
 ## Also from MorPHYes Mastery
 
 - **[MorPHYes RSVP](https://github.com/morphyesmastery/morphyes-rsvp)** — reasoning you can READ, live inside the Hermes desktop app. MIT, free.
+
+
+## Contact
+
+- **Issues** — bug reports and feature requests: [open an issue](https://github.com/morphyesmastery/simpleJACK/issues)
+- **Discussions** — questions, setup help, show-and-tell: [join the discussion](https://github.com/morphyesmastery/simpleJACK/discussions)
+- **Email** — trent@morphyesmastery.com
 
 ---
 
