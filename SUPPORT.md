@@ -21,7 +21,7 @@ and it only survives if the people it serves keep it alive.
 
 **e-Transfer** (Canada — no middlemen, no fees skimmed):
 
-> **trent@morphyesmastery.com**
+> **morphyesmastery@gmail.com**
 
 Reference: **"Support the Work"** (or name the tool you're backing — SimpleJack / MorPHYtrek).
 

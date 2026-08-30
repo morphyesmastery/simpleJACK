@@ -16,11 +16,14 @@ set PYTHONPATH=
 set PYTHONHOME=
 set VIRTUAL_ENV=
 
-:: --- Find Python: bundled runtime > beside us > MorPHYvenv beside us > PATH ---
+:: --- Python: the bundled runtime, ALWAYS. No interpreter swaps. ---
 set "PY=%ROOT%\runtime\python.exe"
 if not exist "%PY%" set "PY=%ROOT%\python.exe"
-if not exist "%PY%" set "PY=%ROOT%\MorPHYvenv\Scripts\python.exe"
 if not exist "%PY%" set "PY=python"
+
+:: --- Dependency by ADDRESS: runtime python points at the venv's
+::     compiled CUDA torch. Same python, one mouth, torch by location. ---
+if exist "%USERPROFILE%\Desktop\MorPHYvenv\Lib\site-packages" set "PYTHONPATH=%USERPROFILE%\Desktop\MorPHYvenv\Lib\site-packages"
 
 :: --- DEPENDENCY CHECK (first-run installer, standard behavior) ---
 ::     For each module: if the bundled python can import it, do nothing.
@@ -28,11 +31,11 @@ if not exist "%PY%" set "PY=python"
 ::     Skips silently when everything is already present (normal boot).
 ::     Modules mirror the LIVE morPHYtrek.py auto-install list exactly.
 echo Checking dependencies...
-"%PY%" -c "import sounddevice"  2>nul || "%PY%" "%ROOT%\get-pip.py" --quiet 2>nul & "%PY%" -m pip install --quiet --disable-pip-version-check sounddevice 2>nul
-"%PY%" -c "import faster_whisper" 2>nul || "%PY%" -m pip install --quiet --disable-pip-version-check faster-whisper 2>nul
-"%PY%" -c "import pyperclip"   2>nul || "%PY%" -m pip install --quiet --disable-pip-version-check pyperclip 2>nul
-"%PY%" -c "import pyautogui"   2>nul || "%PY%" -m pip install --quiet --disable-pip-version-check pyautogui 2>nul
-"%PY%" -c "import pynput"      2>nul || "%PY%" -m pip install --quiet --disable-pip-version-check pynput 2>nul
+"%PY%" -c "import sounddevice"  2>nul || "%PY%" "%ROOT%\get-pip.py" --quiet 2>nul & "%PY%" -m pip install --quiet --disable-pip-version-check sounddevice  2>nul
+"%PY%" -c "import faster_whisper" 2>nul || "%PY%" -m pip install --quiet --disable-pip-version-check faster_whisper 2>nul
+"%PY%" -c "import pyperclip"   2>nul || "%PY%" -m pip install --quiet --disable-pip-version-check pyperclip   2>nul
+"%PY%" -c "import pyautogui"   2>nul || "%PY%" -m pip install --quiet --disable-pip-version-check pyautogui   2>nul
+"%PY%" -c "import pynput"      2>nul || "%PY%" -m pip install --quiet --disable-pip-version-check pynput      2>nul
 echo Dependencies OK.
 
 :: --- REFRESH MORPHYTREK (this bundle only — title MORPHYTREK-PORTABLE,

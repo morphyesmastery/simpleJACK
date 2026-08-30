@@ -63,7 +63,7 @@ e-Transfer (Canada) or **Bitcoin Lightning** (worldwide) — no middlemen, no St
 
 - **Issues** — bug reports and feature requests: [open an issue](https://github.com/morphyesmastery/simpleJACK/issues)
 - **Discussions** — questions, setup help, show-and-tell: [join the discussion](https://github.com/morphyesmastery/simpleJACK/discussions)
-- **Email** — trent@morphyesmastery.com
+- **Email** — morphyesmastery@gmail.com
 
 ---
 

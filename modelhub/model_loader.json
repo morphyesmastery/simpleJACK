@@ -124,7 +124,7 @@
       "note": "verified live 2026-08-21; free lane 429s when busy",
       "provider_name": "OpenRouter",
       "free_rule": "OpenRouter :free: per-model rate limit (~20 req/min, 50 req/day when credits under $10, 1000/day at $10+). Limits are PER MODEL - each free model has its own budget.",
-      "archived": true,
+      "archived": false,
       "reset_spec": null,
       "reset_next": null
     },
@@ -477,15 +477,15 @@
       "reset_next": null
     },
     {
-      "id": "trqwen38maxfree",
+      "id": "trglm531free",
       "provider": "tokenrouter",
-      "upstream": "qwen/qwen3.8-max-free",
-      "label": "Qwen 3.8 Max (TokenRouter FREE)",
+      "upstream": "z-ai/glm-5.3-free",
+      "label": "GLM 5.3 (TokenRouter FREE)",
       "cost": "FREE",
       "context": 200000,
       "created": 1787865000,
       "enabled": true,
-      "note": "Verified live 2026-08-27 (HTTP 200, real content at $0 balance). Reasoning model - needs max_tokens 500+ or content comes back empty. Key in keys.local.json field tokenrouter.",
+      "note": "TokenRouter live free lane. Verified HTTP 200 ALIVE 2026-08-29. qwen3.8-max-free was pulled upstream; this is the replacement.",
       "provider_name": "TokenRouter",
       "free_rule": "TokenRouter free lane: qwen3.8-max-free works at $0 balance. Kimi K3 '50M free tokens' promo requires dashboard claim/top-up - wallet gated until then.",
       "archived": false,
@@ -503,6 +503,6 @@
     "content_rating": 4,
     "impose_content_rating": false,
     "gpu_util_max": 99,
-    "gpu_vram_max_mb": 4300
+    "gpu_vram_max_mb": 8100
   }
 }

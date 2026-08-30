@@ -542,6 +542,12 @@ async def chat_completions(request: Request):
     apply_master_prefs(payload, prefs)
 
     headers = {"Content-Type": "application/json"}
+    # 2026-08-29 (Trent): OpenRouter app attribution. Some :free models
+    # (thinkingmachines/inkling*) are gated to "agentic harnesses" and 403
+    # plain API clients. We ARE an agentic harness (Hermes + SimpleJack via
+    # this hub), so declare it the documented way.
+    headers["HTTP-Referer"] = "https://morphyesmastery.com"
+    headers["X-Title"] = "MorPHYes Model Hub"
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
     else:
