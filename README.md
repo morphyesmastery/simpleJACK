@@ -52,7 +52,7 @@ That's it. Your browser opens SimpleJack and you're talking to a fully-local AI.
 | **SimpleJack — Personal** | **$20 USD, one time** |
 | Trades/Training · Site licenses | [Contact](SUPPORT.md) |
 
-e-Transfer, no middlemen, no Stripe. → **[SALE.md](SALE.md)**
+e-Transfer (Canada) or **Bitcoin Lightning** (worldwide) — no middlemen, no Stripe. → **[SALE.md](SALE.md)**
 
 ## Also from MorPHYes Mastery
 
