@@ -47,16 +47,15 @@ keeps working — that's the point.
 lno1pgpryvqsacpcvnhsyh77376c0kvfrpkwdf9ps6y4aez2jf4lcdcw9smxt9arlrcz938smnf0c8xjv0xn8caenv872swdew8m50er77udwlvxv37e7yjqyquc2qq7eqxx3dvyw989pv38cvmwq2c0ytc7yy5mtq4eq2kndupj2uqrx857hv00pkrs5p5rspc2jvye5j5p38n6aswtfzs8apn79dh4kj8l3a8ts77rtpxgyuhp90uhysyu9rxrd7qz2wvwr98w0pyef420vt35restemw8rsghgrk76hpnrjet6gx067ksqvjj84uug66y6s38x7zgpvecsa57raugmp387uy5mr5yh5wm96sxm35wfr4wmd85d0vqhzxtrxyek368dts
 ```
 
-> Then email **morphyesmastery@gmail.com** with your payment note (the wallet shows
-> the payment hash). Download link + license folder sent the same day.
+> Then email **morphyesmastery@gmail.com** with **SimpleJack** in the subject (include
+> your payment note). The download link + license comes back **automatically — in minutes, day or night**.
 
 **e-Transfer** (Canada):
 
 > **morphyesmastery@gmail.com**
 > Reference: "SimpleJack $20"
 
-Include your email in the message. You'll receive the download link and your license
-folder the same day.
+The download link and license folder are delivered **automatically by return email, in minutes**.
 
 ## Try the proof first
 
