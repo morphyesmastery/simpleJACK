@@ -3,12 +3,12 @@ dispatch.py — THE STACK RUNNER.
 Watches STACK/queue.txt. Pastes the next command into a VISIBLE command
 prompt window. Writes results to STACK/done.log or dispatch/failures.log.
 
-NEVER touches the GPU. Burns CPU all day. Trent sees every command run.
+NEVER touches the GPU. Burns CPU all day. the operator sees every command run.
 
 THREE THINGS THAT MATTER (and only these):
   1. ATOMIC CUT — queue.txt → rename → read → write remainder back. No race.
   2. VISIBLE WINDOW — each command runs in a REAL cmd.exe (CREATE_NEW_CONSOLE).
-     Trent watches it run. Nothing executes hidden. Transparency.
+     the operator watches it run. Nothing executes hidden. Transparency.
   3. CALL OUT FAILURE — non-zero exit → failures.log with command + error + time.
      No silent failures. No drift disguised as bugs.
 
@@ -193,7 +193,7 @@ HEARTBEAT_SEC = 2        # idle wait between queue checks
 SETTLE_SEC    = 1        # pause between commands (GPU/CPU settle)
 HOLD_WINDOW_SEC = 4      # how long the visible window stays open after a command
 
-# Windows process creation flag: open a NEW console window Trent can see.
+# Windows process creation flag: open a NEW console window the operator can see.
 # 0x00000010 = CREATE_NEW_CONSOLE. Falls back gracefully on non-Windows.
 IS_WINDOWS = sys.platform.startswith("win")
 NEW_CONSOLE_FLAG = 0x00000010 if IS_WINDOWS else 0
@@ -202,6 +202,8 @@ NEW_CONSOLE_FLAG = 0x00000010 if IS_WINDOWS else 0
 def now():
     return datetime.now().strftime("%H:%M:%S")
 
+
+_STOP = {"stop": False}
 
 def log(msg, target="dispatch"):
     line = f"[{now()}] [{target}] {msg}"
@@ -260,7 +262,7 @@ def get_next_command():
 
 # Portable (2026-08-01): the persistent window uses the bundle's own
 # command interpreter — a python -c console via the resolved python.
-# No Trent paths. Falls back to plain cmd if anything is missing.
+# No hardcoded user paths. Falls back to plain cmd if anything is missing.
 VENV_BAT = None
 
 # ───────────────────────────────────────────────────────────────────────
@@ -358,7 +360,7 @@ def _open_live_window():
         f"title {_LIVE_WINDOW_TITLE}\n",
         encoding="utf-8"
     )
-    subprocess.Popen(["cmd.exe", "/c", str(launch_bat)],
+    subprocess.Popen(["cmd.exe", "/k", str(launch_bat)],
                      creationflags=NEW_CONSOLE_FLAG)
     deadline = time.time() + 10
     hwnd = None
@@ -532,7 +534,7 @@ def main():
             with FAIL.open("a", encoding="utf-8") as f:
                 f.write(entry)
             log(f"FAILED: {cmd[:80]}")
-            # Failed commands are NOT retried. Trent or AILA reads failures.log.
+            # Failed commands are NOT retried. The operator or AILA reads failures.log.
             # Surgery happens. Then it gets queued again manually.
 
         time.sleep(SETTLE_SEC)

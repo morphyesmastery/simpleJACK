@@ -74,12 +74,13 @@ header {
 }
 header img.logo { height: 36px; width: auto; object-fit: contain; }
 header .nuke-btn {
-  width: 18px; height: 18px; margin-left: 8px; padding: 0;
-  background: url('nuclear_button_small.png') center/contain no-repeat, #1a1a2e;
-  background-size: contain;
-  border: 1px solid #333; border-radius: 4px; cursor: pointer;
+  width: 36px; height: 36px; margin-left: 8px; padding: 0;
+  background: transparent;
+  border: none; border-radius: 6px; cursor: pointer;
   opacity: 0.75; vertical-align: middle; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
 }
+header .nuke-btn img { display: block; width: 36px; height: 36px; object-fit: contain; border-radius: 6px; }
 header .nuke-btn:hover { opacity: 1; border-color: var(--rust); transform: scale(1.06); }
 header .nuke-btn:active { transform: scale(0.94); }
 header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
@@ -101,7 +102,7 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
 .status-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
 .status-pill.down { background: rgba(220,38,38,0.15); border: 1px solid rgba(220,38,38,0.4); color: var(--red); animation: flash 1s infinite; }
 .status-pill.down .dot { background: var(--red); }
-/* VOICE PILL (Trent 2026-08-27) — green=ON red=OFF, click to flip */
+/* VOICE PILL (friend 2026-08-27) — green=ON red=OFF, click to flip */
 .voice-pill {
   display: flex; align-items: center; gap: 6px;
   padding: 4px 12px; border-radius: 999px; cursor: pointer;
@@ -175,6 +176,7 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
 .rail .status.on { color: var(--green); }
 
 /* ── FILE TREE ──────────────────────────────────────────────── */
+.tree-node {
   display: flex; align-items: center; gap: 4px;
   padding: 3px 6px; border-radius: 4px; cursor: pointer;
   font-size: 0.78rem; color: var(--text); white-space: nowrap;
@@ -190,10 +192,11 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
   backdrop-filter: blur(6px);
   overflow-x: auto;
   flex-shrink: 0;
+  position: relative; z-index: 400;
 }
 .tab-bar::-webkit-scrollbar { height: 0; }
 .sj-tab {
-  flex: 1; min-width: 120px; max-width: 220px;
+  flex: 1 1 0; min-width: 72px; max-width: 220px;
   background: rgba(15,35,64,0.4);
   border: none; border-bottom: 3px solid transparent;
   color: rgba(236,230,216,0.75);
@@ -235,7 +238,8 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
 /* PLUS BUTTON */
 .plus-btn {
   flex: 0 0 42px; min-width: 42px; max-width: 42px;
-  background: rgba(15,35,64,0.3);
+  position: sticky; right: 42px; z-index: 410;
+  background: rgba(15,35,64,0.95);
   border: 1px dashed var(--border-orange);
   color: var(--orange); font-size: 1.2rem;
   font-family: var(--display); cursor: pointer;
@@ -247,7 +251,8 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
 /* QR ICON BUTTON (right of tab bar) */
 .qr-icon-btn {
   flex: 0 0 42px; min-width: 42px; max-width: 42px;
-  background: rgba(15,35,64,0.3);
+  position: sticky; right: 0; z-index: 410;
+  background: rgba(15,35,64,0.95);
   border: 1px solid var(--border-orange);
   color: var(--orange); font-size: 0.6rem;
   font-family: var(--display); cursor: pointer;
@@ -266,6 +271,8 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
 }
 .workspace > .tab-panel { flex: 1; display: none; flex-direction: column; min-height: 0; overflow: hidden; }
 .workspace > .tab-panel.active { display: flex; }
+/* Masterpiece panels: video shows through as smeared glow — readable, keeps the motion */
+.workspace > .tab-panel[id^="panel-mp-"] { background: rgba(10,18,34,0.78); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); position: relative; z-index: 1; }
 
 /* ── CHAT AREA ─────────────────────────────────────────────── */
 .chat-log {
@@ -283,7 +290,7 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
 }
 @keyframes slideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .ts { font-size: 0.6rem; color: var(--muted); margin-left: 6px; }
-/* RSVP TRACE DROPDOWN (Trent 2026-08-14) — collapsed reasoning above the reply */
+/* RSVP TRACE DROPDOWN (friend 2026-08-14) — collapsed reasoning above the reply */
 .rsvp-trace-dd { margin: 4px 0 2px 0; border: 1px solid var(--border); border-radius: 6px; }
 .rsvp-trace-dd summary {
   cursor: pointer; padding: 4px 10px; font-size: .72rem; letter-spacing: .08em;
@@ -297,7 +304,7 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
   color: #b0b8cc; background: rgba(0,0,0,.15);
 }
 
-/* ── READ ALOUD WITH MORPHYTREK — right-click any selected text (Trent 2026-08-24).
+/* ── READ ALOUD WITH MORPHYTREK — right-click any selected text (friend 2026-08-24).
    Same pipe the Chrome extension uses: /api/narrate → queue → Piper. */
 .ra-menu {
   position: fixed; z-index: 9999; display: none; min-width: 240px;
@@ -354,7 +361,8 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
 .stack-panel {
   flex-shrink: 0; margin: 0 20px;
   padding: 8px 14px;
-  background: rgba(10,26,46,0.7); border: 1px solid var(--border);
+  background: rgba(10,26,46,0.82); border: 1px solid var(--border);
+  backdrop-filter: blur(8px);
   border-radius: 8px; font-size: 0.72rem; color: var(--muted);
   font-family: var(--mono); display: flex; flex-direction: column; gap: 3px;
 }
@@ -362,6 +370,37 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
 .stack-row .label { color: var(--muted); }
 .stack-row .val { color: var(--green); }
 .stack-row .val.busy { color: var(--yellow); }
+
+/* ── ANALOG CLOCK ON THE LOGO (friend 2026-09-06) ─────────────── */
+.clock-panel { margin: 4px 12px 10px 12px; text-align: center; }
+.clock-face-wrap {
+  position: relative; width: 100%; aspect-ratio: 1/1;
+  border-radius: 50%; overflow: hidden;
+  border: 1px solid var(--rust);
+  box-shadow: 0 0 18px rgba(0,0,0,0.45), inset 0 0 24px rgba(0,0,0,0.5);
+}
+.clock-logo {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; opacity: 0.85; filter: saturate(1.1) brightness(1.15);
+}
+.clock-hands { position: absolute; inset: 0; width: 100%; height: 100%; }
+.clock-hands .tick { stroke: var(--rust); stroke-width: 1.6; stroke-linecap: round; opacity: 0.85; }
+.clock-hands .tick.major { stroke-width: 2.6; }
+.clock-hands .hand { stroke-linecap: round; }
+.clock-hands .hand.hour   { stroke: #0a1a2e; stroke-width: 4.6; }
+.clock-hands .hand.minute { stroke: #0a1a2e; stroke-width: 3.2; }
+.clock-hands .hand.second { stroke: var(--rust); stroke-width: 1.6; }
+.clock-hands .hand-outline { stroke: #ffffff; stroke-width: 7.5; opacity: 0.95; }
+.clock-hands .hand-outline.minute { stroke-width: 6; }
+.clock-hands .hand-outline.second { stroke-width: 4; opacity: 0.9; }
+.clock-hands .pin { fill: var(--rust); }
+.clock-hands .pin-outline { fill: none; stroke: #ffffff; stroke-width: 2; }
+.clock-date { margin-top: 8px; font-family: var(--display); }
+.clock-date .dow {
+  color: var(--orange); font-size: 0.78rem; letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.clock-date .md { color: var(--text); font-size: 0.95rem; letter-spacing: 0.22em; }
 
 /* ── INPUT AREA ─────────────────────────────────────────────── */
 .input-area {
@@ -609,7 +648,7 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
   background: rgba(4,12,24,0.62);
 }
 /* Live reasoning trace under the RSVP display — full text renders
-   regardless of reading speed (Trent 2026-08-23: the RSVP alone caps
+   regardless of reading speed (friend 2026-08-23: the RSVP alone caps
    what gets SEEN at reading WPM; the trace must all be there). */
 .rsvp-live-trace {
   margin: 8px 0 0 0; max-height: 180px; overflow-y: auto;
@@ -649,7 +688,7 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
 <header>
   <button id="railToggle" type="button" onclick="toggleRail()" title="Menu" aria-label="Toggle menu">&#9776;</button>
   <img src="morphyes-logo.jpg" alt="MorPHYes Mastery" class="logo" />
-  <button class="nuke-btn" ondblclick="wipeTranscript()" title="Double-click: wipe the raw transcript (fresh session)"></button>
+  <button class="nuke-btn" ondblclick="wipeTranscript()" title="Double-click: wipe the raw transcript (fresh session)"><img src="nuke-button.png" alt="Nuke" style="height:36px;width:36px;object-fit:contain;border-radius:6px" /></button>
   <div class="brand">
     <span class="amp">&</span>simple<span class="jack">JACK</span>
     <span class="sub">MASTERY</span>
@@ -662,7 +701,7 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
     <div class="dot"></div>
     <span id="voiceText">VOICE OFF</span>
   </button>
-  <input type="text" id="chatSearch" placeholder="Search chat..." style="flex:0 1 180px;padding:4px 10px;border-radius:6px;border:1px solid var(--rust);background:rgba(10,26,46,0.6);color:var(--fg);font-size:0.68rem;font-family:var(--display);outline:none" oninput="searchChat(this.value)" />
+  <input type="text" id="chatSearch" placeholder="Search chat..." style="flex:0 1 180px;padding:4px 10px;border-radius:6px;border:1px solid var(--rust);background:rgba(10,26,46,0.6);color:var(--text);font-size:0.68rem;font-family:var(--display);outline:none" oninput="searchChat(this.value)" />
   <button class="ghost" style="padding:4px 10px;border-radius:6px;border:1px solid var(--rust);background:rgba(10,26,46,0.6);color:var(--rust);font-size:0.68rem;font-family:var(--display);cursor:pointer;font-weight:700" onclick="scrollChatBottom()" title="Scroll to bottom">&#8595;</button>
   <button class="ghost" style="padding:4px 10px;border-radius:6px;border:1px solid var(--rust);background:rgba(10,26,46,0.6);color:var(--rust);font-size:0.68rem;font-family:var(--display);cursor:pointer;font-weight:700" onclick="refreshAll()">&#8635;</button>
 </header>
@@ -676,7 +715,7 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
 <div id="setupOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(6,18,34,0.94);backdrop-filter:blur(4px);align-items:center;justify-content:center;font-family:var(--display)">
   <div style="background:linear-gradient(160deg,#0f2340,#0a1a2e);border:1px solid var(--rust);border-radius:14px;max-width:560px;width:92%;padding:28px 32px;box-shadow:0 18px 60px rgba(0,0,0,0.6)">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
-      <span style="font-size:1.5rem">&amp;</span><span style="font-size:1.5rem;font-weight:800;color:var(--fg)">simple<span style="color:var(--rust)">JACK</span></span>
+      <span style="font-size:1.5rem">&amp;</span><span style="font-size:1.5rem;font-weight:800;color:var(--text)">simple<span style="color:var(--rust)">JACK</span></span>
     </div>
     <div style="font-size:0.78rem;color:var(--rust);letter-spacing:2px;margin-bottom:16px;font-weight:700">FIRST RUN — ONE KEY, ONE MINUTE</div>
     <p style="font-size:0.9rem;color:#c8d6e8;line-height:1.6;margin:0 0 18px 0">
@@ -686,7 +725,7 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
     </p>
 
     <label style="font-size:0.72rem;color:#9fb3c8;letter-spacing:1px;font-weight:700">1 · PROVIDER</label>
-    <select id="setupProvider" style="width:100%;margin:6px 0 14px 0;padding:10px 12px;border-radius:8px;border:1px solid var(--rust);background:#0a1a2e;color:var(--fg);font-size:0.88rem;font-family:var(--display)">
+    <select id="setupProvider" style="width:100%;margin:6px 0 14px 0;padding:10px 12px;border-radius:8px;border:1px solid var(--rust);background:#0a1a2e;color:var(--text);font-size:0.88rem;font-family:var(--display)">
       <option value="openrouter">OpenRouter — one key, hundreds of models, free options</option>
       <option value="nvidia">NVIDIA — free API key at build.nvidia.com</option>
       <option value="zai">Z.AI GLM — fast coding model</option>
@@ -699,7 +738,7 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
     <div id="keyUrlHint" style="font-size:0.72rem;color:#9fb3c8;margin:4px 0 14px 0">Opens the provider's sign-in page. Use "Continue with Google" or email. After signing in, follow the steps shown here to create and copy your free key.</div>
 
     <label style="font-size:0.72rem;color:#9fb3c8;letter-spacing:1px;font-weight:700">3 · PASTE KEY</label>
-    <input type="password" id="setupKey" placeholder="sk-… paste your key here" style="width:100%;margin:6px 0 14px 0;padding:10px 12px;border-radius:8px;border:1px solid var(--rust);background:#0a1a2e;color:var(--fg);font-size:0.88rem;font-family:var(--mono)" />
+    <input type="password" id="setupKey" placeholder="sk-… paste your key here" style="width:100%;margin:6px 0 14px 0;padding:10px 12px;border-radius:8px;border:1px solid var(--rust);background:#0a1a2e;color:var(--text);font-size:0.88rem;font-family:var(--mono)" />
 
     <div style="display:flex;gap:10px">
       <button onclick="testKey()" style="flex:1;padding:12px;border-radius:8px;border:1px solid var(--rust);background:rgba(217,120,52,0.12);color:var(--rust);font-size:0.88rem;font-family:var(--display);font-weight:800;cursor:pointer">TEST KEY (real)</button>
@@ -731,10 +770,28 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
     </select>
     <div class="status" id="modelStatus">Local model: checking...</div>
 
-    <h2>Stack</h2>
-    <div class="stack-panel" id="railStackPanel">
-      <div class="stack-row"><span class="label">Depth</span><span class="val" id="stackDepthRail">0</span></div>
-      <div class="stack-row"><span class="label">Running</span><span class="val busy" id="stackCurrentRail">(idle)</span></div>
+    <h2>Time</h2>
+    <div class="clock-panel" id="railClockPanel">
+      <div class="clock-face-wrap">
+        <img src="clock-face-logo.png" alt="" class="clock-logo" />
+        <svg class="clock-hands" viewBox="0 0 100 100" aria-hidden="true">
+          <!-- hour marks: 12 ticks, no numbers (non-digital) -->
+          <g class="ticks" id="clockTicks"></g>
+          <!-- white outline layer under every hand: visible on ANY background -->
+          <line id="handHourOutline"   x1="50" y1="50" x2="50" y2="29" class="hand-outline hour"   />
+          <line id="handMinuteOutline" x1="50" y1="50" x2="50" y2="21" class="hand-outline minute" />
+          <line id="handSecondOutline" x1="50" y1="54" x2="50" y2="18" class="hand-outline second" />
+          <line id="handHour"   x1="50" y1="50" x2="50" y2="29" class="hand hour"   />
+          <line id="handMinute" x1="50" y1="50" x2="50" y2="21" class="hand minute" />
+          <line id="handSecond" x1="50" y1="54" x2="50" y2="18" class="hand second" />
+          <circle cx="50" cy="50" r="3.4" class="pin-outline" />
+          <circle cx="50" cy="50" r="2.4" class="pin" />
+        </svg>
+      </div>
+      <div class="clock-date">
+        <div class="dow" id="clockDow">—</div>
+        <div class="md" id="clockMd">—</div>
+      </div>
     </div>
 
   </aside>
@@ -742,6 +799,9 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
   <!-- TAB BAR (FreedomNow persona-tabs) -->
   <div class="tab-bar" id="tabBar">
     <!-- Tabs populated by JS. Local AILA is locked, others from + button -->
+    <!-- STATIC PLUS (2026-09-13): the + is now real markup, not JS output.
+         Even if every script dies, the Add-Tab button is physically present. -->
+    <button class="plus-btn" onclick="openPathModal()" title="Add Tab">+</button>
   </div>
 
   <!-- WORKSPACE -->
@@ -780,9 +840,9 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
           <div id="stackQueuePreview"></div>
         </div>
         <div style="margin-top:14px;display:flex;gap:8px">
-          <button class="send-btn" style="height:40px" onclick="stackGo()">Dispatch GO</button>
-          <button class="send-btn" style="height:40px;background:var(--rust)" onclick="stackPause()">Pause</button>
-        </div>
+                  <button class="send-btn" style="height:40px;border:1px solid var(--rust);border-radius:10px;padding:10px 22px;background:var(--rust);color:var(--bg);font-weight:700;cursor:pointer;font-size:0.85rem;white-space:nowrap;font-family:var(--display);letter-spacing:0.04em;transition:all 0.15s" onclick="stackGo()">Dispatch GO</button>
+                  <button class="send-btn" style="height:40px;border:1px solid var(--rust);border-radius:10px;padding:10px 22px;background:var(--rust);color:var(--bg);font-weight:700;cursor:pointer;font-size:0.85rem;white-space:nowrap;font-family:var(--display);letter-spacing:0.04em;transition:all 0.15s" onclick="stackPause()"><span>⚙</span> Pause</button>
+                </div>
       </div>
     </div>
 
@@ -904,14 +964,19 @@ function switchToTab(tabId, el) {
   document.querySelectorAll('#tabBar .sj-tab').forEach(t => t.classList.remove('active'));
   if (el) el.classList.add('active');
 
-  // ALL tab modules share panel-chat. Workspace survives.
-  // The ONLY thing that changes: which endpoint sendChat() routes to.
-  // Like FreedomNow persona tabs — same chat, different voice.
+  const tabs = getAllTabs();
+  const tab = tabs.find(t => t.id === tabId) || BUILTIN_TABS.find(t => t.id === tabId);
+
+  // BUILT-IN tabs (local-aila) share the chat panel.
+  // MASTERPIECE tabs get their own panel via render_html() — same as the rail nav door.
+  if (tab && tab.path && tabId !== 'local-aila') {
+    navClickMasterpiece(tabId, el);
+    return;
+  }
+
   document.querySelectorAll('.workspace > .tab-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-chat').classList.add('active');
 
-  const tabs = getAllTabs();
-  const tab = tabs.find(t => t.id === tabId) || BUILTIN_TABS.find(t => t.id === tabId);
   window.activeHook = (tab && tab.hook) ? tab.hook : null;
   loadHistory(); // rebuild chat from this tab's session
 }
@@ -936,6 +1001,22 @@ function pickDest(el) {
   document.querySelectorAll('.dest-btn').forEach(b => b.classList.remove('selected'));
   el.classList.add('selected');
   selectedDest = el.getAttribute('data-dest');
+}
+
+function openPathModal() {
+  document.getElementById('pathModal').classList.add('open');
+  document.getElementById('pathInput').value = '';
+  document.getElementById('pathError').textContent = '';
+  // Reset color and dest to defaults
+  selectedColor = 'orange'; selectedDest = 'tab';
+  document.querySelectorAll('.color-box').forEach(b => b.classList.remove('selected'));
+  document.querySelector('.color-box[data-c="orange"]').classList.add('selected');
+  document.querySelectorAll('.dest-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelector('.dest-btn[data-dest="tab"]').classList.add('selected');
+  setTimeout(() => document.getElementById('pathInput').focus(), 100);
+}
+function closePathModal() {
+  document.getElementById('pathModal').classList.remove('open');
 }
 
 
@@ -1026,7 +1107,16 @@ function navClickMasterpiece(id, el) {
     fetch(API + '/api/render_module', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({path: modulePath}) })
       .then(r => r.json())
       .then(data => {
-        if (data.html) panel.innerHTML = data.html;
+        if (data.html) {
+          panel.innerHTML = data.html;
+          // Module scripts injected via innerHTML never execute — recreate them.
+          panel.querySelectorAll('script').forEach(old => {
+            const s = document.createElement('script');
+            if (old.src) s.src = old.src; else s.textContent = old.textContent;
+            document.body.appendChild(s);
+            old.remove();
+          });
+        }
         else if (data.error) panel.innerHTML = '<div class="chat-log"><p style="color:var(--red)">' + esc(data.error) + '</p></div>';
         else panel.innerHTML = '<div class="chat-log"><p style="color:var(--muted)">No render data returned.</p></div>';
       })
@@ -1061,9 +1151,15 @@ let _rsvpReplyPending = false; // QUEUE-DRAIN LAW: reply staged (DONE showing), 
 let _rsvpReplyQueued = false;  // QUEUE-DRAIN LAW: reply words queued and rendering
 
 // Scroll chat log to bottom — called after RSVP renders
+// USER-SCROLL LAW (friend 2026-09-07): auto-scroll ONLY when the operator is
+// already at the bottom. The moment he scrolls away — to read, to reach the
+// STOP button — the auto-scroll stops fighting him. It re-arms when he
+// returns to the bottom.
 function _rsvpScrollLog() {
   const log = document.getElementById('chatLog');
-  if (log) log.scrollTop = log.scrollHeight;
+  if (!log) return;
+  const atBottom = (log.scrollHeight - log.scrollTop - log.clientHeight) < 40;
+  if (atBottom) log.scrollTop = log.scrollHeight;
 }
 
 // Ctrl+Mouse wheel zoom — chrome (sidebar, header, input) grows and stays pinned to edges,
@@ -1141,7 +1237,7 @@ function rsvpStart(reasoningText) {
     });
   });
 
-  // STALE-TIMER FIX (Trent 2026-08-28): when the ticker stopped on an empty
+  // STALE-TIMER FIX (friend 2026-08-28): when the ticker stopped on an empty
   // queue (burst pause), _rsvpTimer still holds the DEAD timer's ID — the
   // "if (!_rsvpTimer)" check below skipped the restart and every later burst
   // was mute (4-word bug). A dead ticker MUST read as null; the exits in
@@ -1166,7 +1262,7 @@ function rsvpShowReply(replyText, toolsUsed, model, turns) {
   // Stop reasoning polling if still running (buffer is final now)
   if (_rsvpPollId) { clearInterval(_rsvpPollId); _rsvpPollId = null; }
 
-  // ── QUEUE-DRAIN LAW (Trent 2026-08-28): EVERY reasoning word goes
+  // ── QUEUE-DRAIN LAW (friend 2026-08-28): EVERY reasoning word goes
   // through the RSVP before the reply. Fast local cards finish thinking
   // in 1-2s; the reply used to land here while ~100 words were still
   // queued, and the old code threw the queue away (4-word bug). Now the
@@ -1342,13 +1438,13 @@ function _rsvpNext() {
     return;
   }
   const wpmEl = _rsvpEl('WpmBubble');
-  const wpm = parseInt(wpmEl ? wpmEl.value : 600) || 600;
+  const wpm = parseInt(wpmEl ? wpmEl.value : 1000) || 1000;
   const token = _rsvpWordQueue.shift();
   _rsvpShowWord(token);
-  // CATCH-UP LAW (Trent 2026-08-28): when the reply is waiting on the drain,
+  // CATCH-UP LAW (friend 2026-08-28): when the reply is waiting on the drain,
   // finishing the reasoning words at reading speed wastes minutes. Drain at
-  // min(wpm, 1200) during the handoff — every word still displays, in seconds.
-  const drainWpm = (_rsvpReplyPending || _rsvpReplyQueued) ? Math.min(wpm, 1200) : wpm;
+  // min(wpm, 1000) during the handoff — every word still displays, in seconds.
+  const drainWpm = (_rsvpReplyPending || _rsvpReplyQueued) ? Math.min(wpm, 1000) : wpm;
   const drainDelay = 60000 / drainWpm;
   // Floor: never faster than 60ms so each word is perceivable
   const delay = Math.max(60, Math.round(drainDelay * (token.delay_multiplier || 1.0)));
@@ -1380,9 +1476,14 @@ function rsvpBeginStream(requestId) {
         if (data.reasoning && data.reasoning.length > 0) {
           rsvpStart(data.reasoning);
           // FULL trace renders live below the RSVP display — reading
-          // speed no longer caps what is visible (Trent 2026-08-23).
+          // speed no longer caps what is visible (friend 2026-08-23).
           const lt = document.getElementById('rsvpLiveTrace');
-          if (lt) { lt.textContent = data.reasoning; lt.scrollTop = lt.scrollHeight; }
+          // USER-SCROLL LAW (friend 2026-09-07): NO auto-scroll in the reasoning
+          // trace, ever. The operator must be able to select and copy sections of
+          // the live reasoning for steering — auto-scroll rips the selection out
+          // from under him. The trace text updates in place; the box stays exactly
+          // where he put it. The snap-to-bottom button is the only way back down.
+          if (lt) { lt.textContent = data.reasoning; }
         }
         if (data.status === 'done') {
           // Reasoning polling done — stop polling, RSVP will finish the queue
@@ -1417,10 +1518,10 @@ function rsvpActivateInBubble(bubbleEl, requestId) {
       '</span>' +
       '<div class="rsvp-controls">' +
         '<label>WPM</label>' +
-        '<input type="range" id="rsvpWpmBubble" min="60" max="600" value="600" step="10" ' +
+        '<input type="range" id="rsvpWpmBubble" min="60" max="1000" value="1000" step="10" ' +
           'oninput="document.getElementById(\'rsvpWpmBubbleVal\').innerText=this.value" ' +
           'style="width:60px">' +
-        '<span class="rsvp-wpm" id="rsvpWpmBubbleVal">600</span>' +
+        '<span class="rsvp-wpm" id="rsvpWpmBubbleVal">1000</span>' +
         '<button onclick="rsvpPauseResume()" id="rsvpPauseBubble">PAUSE</button>' +
         '<button onclick="rsvpMinimizeMaximize()" id="rsvpMinMaxBubble">\u25B2</button>' +
         '<button onclick="stopAILA()" style="border-color:var(--red);color:var(--red)">STOP</button>' +
@@ -1593,22 +1694,37 @@ function checkAILAHealth() {
 }
 
 function refreshAll() {
-  checkAILAHealth(); loadModels(); refreshStack();
-  // 2026-08-23: refresh is status-only now. The app never launches or kills
-  // processes — the Model Hub owns the engine side. Re-check health a few
-  // seconds later so the UI reflects reality.
-  fetch(API + '/api/refresh_servers', {
+  // REFRESH = KILL + RESTART BRAIN (friend 2026-09-01). The old status-only
+  // refresh let a wedged brain sit there forever. Now the button restarts
+  // simplejack.py itself: POST /api/restart, then poll health until the
+  // new brain answers.
+  const pill = document.getElementById('statusPill');
+  const text = document.getElementById('statusText');
+  if (pill) { pill.classList.add('down'); }
+  if (text) { text.innerText = 'RESTARTING BRAIN…'; }
+  fetch(API + '/api/restart', {
     method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'
   })
-  .then(r => r.json())
-  .then(d => {
-    setTimeout(checkAILAHealth, 4000);
-    setTimeout(loadModels, 4000);
-  })
-  .catch(() => {});
+  .catch(() => {})
+  .then(() => {
+    let tries = 0;
+    const poll = () => {
+      tries++;
+      fetch(API + '/api/health')
+        .then(r => r.json())
+        .then(d => {
+          if (d.hub === 'up' || tries > 30) {
+            if (text) { text.innerText = 'BRAIN RESTARTED'; }
+            checkAILAHealth(); loadModels(); refreshStack();
+          } else { setTimeout(poll, 1000); }
+        })
+        .catch(() => { if (tries <= 30) setTimeout(poll, 1000); });
+    };
+    setTimeout(poll, 2500);
+  });
 }
 
-// ── VOICE PILL (Trent 2026-08-27) — green=ON red=OFF, folder + mouth ──
+// ── VOICE PILL (friend 2026-08-27) — green=ON red=OFF, folder + mouth ──
 function refreshVoicePill() {
   const pill = document.getElementById('voicePill');
   const text = document.getElementById('voiceText');
@@ -1687,7 +1803,7 @@ function loadModels() {
 
       // THE HUB CONTRACT — SimpleJack sees NOTHING but the hub's active models.
       // No engine groups, no Ollama menu, no hardcoded lists. GET /v1/models
-      // on 8123 is the whole truth. Chosen 2026-08-20 (Trent's order).
+      // on 8123 is the whole truth. Chosen 2026-08-20 (friend's order).
       const eng = (data.engines || {}).hub;
       if (eng && eng.models && eng.models.length) {
         const tag = eng.has_key ? '' : ' (hub down)';
@@ -1748,10 +1864,40 @@ function stackPause() {
 }
 
 // ── CHAT (Agent Loop — same as v1, improved) ─────────────────
+// STEER (friend 2026-09-06): when a request is live, the textbox STEERS
+// it instead of starting a parallel one. One request, amended mid-flight.
+let liveRequestId = null;  // set while a request is thinking/working
+
 function sendChat() {
   const input = document.getElementById('promptInput');
   const prompt = input.value.trim();
   if (!prompt) return;
+
+  // ── STEER BRANCH: a run is live → amend it, don't parallel it ──
+  if (liveRequestId) {
+    input.value = '';
+    const log = document.getElementById('chatLog');
+    const steerBubble = document.createElement('div');
+    steerBubble.className = 'bubble user';
+    steerBubble.innerHTML = '<div class="who">You <span class="model-tag" style="color:var(--orange)">· STEER</span></div><div class="body">' + esc(prompt) + '</div>';
+    log.appendChild(steerBubble);
+    log.scrollTop = log.scrollHeight;
+    fetch(API + '/api/steer', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: prompt})
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) {
+        // Nothing live (race: request finished between flag and send) —
+        // fall through as a normal message so the words are never lost.
+        liveRequestId = null;
+        sendChatRestore(prompt);
+      }
+    })
+    .catch(() => { liveRequestId = null; sendChatRestore(prompt); });
+    return;
+  }
 
   taskCounter++;
   const log = document.getElementById('chatLog');
@@ -1862,6 +2008,7 @@ function sendChat() {
       return;
     }
     const reqId = data.request_id;
+    liveRequestId = reqId;  // STEER: mark live — textbox now steers, not parallels
     rsvpActivateInBubble(ailaBubble, reqId);
     let polls = 0;
     const maxPolls = 7200;
@@ -1881,6 +2028,7 @@ function sendChat() {
         if (sd.status === 'done') {
           clearInterval(interval);
           rsvpStop();
+          liveRequestId = null;  // STEER: run finished — textbox sends new requests again
           ailaBubble.innerHTML = '<div class="who">AILA <span class="model-tag">[' + esc(sd.model || '') + '] · ' + (sd.turns || 0) + ' turn(s)</span></div>' +
             '<div class="body">' + esc(sd.reply || '') + rsvpTraceDropdown(sd.reasoning || '') + '</div>';
           refreshStack();
@@ -1894,9 +2042,11 @@ function sendChat() {
         } else if (sd.status === 'error') {
           clearInterval(interval);
           rsvpStop(); // stop reasoning trace
+          liveRequestId = null;  // STEER: run errored — release the textbox
           ailaBubble.innerHTML = '<div class="who" style="color:var(--red)">AILA</div><div class="body">' + esc(sd.reply || 'Error') + '</div>';
         } else if (sd.status === 'unknown') {
           clearInterval(interval);
+          liveRequestId = null;  // STEER: request lost — release the textbox
           ailaBubble.innerHTML = '<div class="who" style="color:var(--yellow)">AILA</div><div class="body">Request lost — simpleJACK may have restarted. Refresh the page.</div>';
         }
       } catch(pe) {
@@ -1916,6 +2066,16 @@ function sendChat() {
 
 function stopAILA() {
   fetch(API + '/api/stop', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).catch(()=>{});
+}
+
+// ── STEER FALLBACK (friend 2026-09-06): if a steer raced a finishing run ──
+// (request ended between the live-flag check and the POST), the words are
+// NEVER lost — they go out as a normal new message. This helper re-fires
+// sendChat with the prompt restored into the input box.
+function sendChatRestore(prompt) {
+  const input = document.getElementById('promptInput');
+  input.value = prompt;
+  sendChat();
 }
 
 // Enter sends, Shift+Enter = newline
@@ -1961,7 +2121,7 @@ function loadHistory() {
       if (!entries || !entries.length) return;
       const log = document.getElementById('chatLog');
       log.innerHTML = ''; // clear any existing DOM bubbles
-      // TAIL-ONLY REBUILD (Trent 2026-08-14): the model's live context is the
+      // TAIL-ONLY REBUILD (friend 2026-08-14): the model's live context is the
       // last N interchanges — the PAGE should mirror that, not redraw the
       // whole 1000+ entry archive on every boot (that froze the browser for
       // ~20s: "Page unresponsive Wait/Quit"). The full archive stays in the
@@ -2005,7 +2165,7 @@ function rsvpTraceDropdown(reasoningText) {
     esc(reasoningText.trim()) + '</pre></details>';
 }
 
-// ── READ ALOUD WITH MORPHYTREK (Trent 2026-08-24) ────────────────
+// ── READ ALOUD WITH MORPHYTREK (friend 2026-08-24) ────────────────
 // Highlight any text in the app, right-click, choose READ ALOUD — the
 // words go to morPHYtrek through the same queue pipe the Chrome
 // extension uses (/api/narrate → morphytrek_data/queue → Piper).
@@ -2058,9 +2218,67 @@ refreshStack();
 checkSetupStatus();  // first-run gate — shows overlay if nothing configured
 loadHistory();
 refreshVoicePill();
+initRailClock();
 setInterval(checkAILAHealth, 10000);
 setInterval(loadModels, 30000);
 setInterval(refreshStack, 3000);
+
+// ── ANALOG CLOCK ON THE LOGO (friend 2026-09-06) ───────────────
+// Real hands from system time, day-of-week in words, month/day
+// numbers (9/6). Non-digital face: ticks only, no digits.
+function initRailClock() {
+  const ticksG = document.getElementById('clockTicks');
+  if (ticksG) {
+    let ticks = '';
+    for (let i = 0; i < 60; i++) {
+      const major = (i % 5 === 0);
+      const len = major ? 7 : 3.5;
+      const r1 = 46, r2 = 46 - len;
+      const a = (i * 6 - 90) * Math.PI / 180;
+      const x1 = 50 + r1 * Math.cos(a), y1 = 50 + r1 * Math.sin(a);
+      const x2 = 50 + r2 * Math.cos(a), y2 = 50 + r2 * Math.sin(a);
+      ticks += `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" class="tick${major ? ' major' : ''}"/>`;
+    }
+    ticksG.innerHTML = ticks;
+  }
+  const DOW = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  function tick() {
+    const now = new Date();
+    const h = now.getHours() % 12, m = now.getMinutes(), s = now.getSeconds();
+    const hA = (h + m / 60) * 30, mA = (m + s / 60) * 6, sA = s * 6;
+    const set = (id, ang) => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute('transform', `rotate(${ang} 50 50)`);
+    };
+    set('handHour', hA); set('handMinute', mA); set('handSecond', sA);
+    set('handHourOutline', hA); set('handMinuteOutline', mA); set('handSecondOutline', sA);
+    const dow = document.getElementById('clockDow');
+    const md  = document.getElementById('clockMd');
+    if (dow) dow.textContent = DOW[now.getDay()];
+    if (md)  md.textContent  = (now.getMonth() + 1) + '/' + now.getDate();
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+// ── CHAT TEXT SCALING (friend 2026-09-06) ──────────────────────
+// Ctrl+wheel on the chat log grows/shrinks conversation text so the
+// visually impaired can read the history — same feel as the frame
+// zoom on the outside. Range 0.7rem–2.2rem, saved to localStorage.
+(function initChatZoom() {
+  const log = document.getElementById('chatLog');
+  if (!log) return;
+  let size = parseFloat(localStorage.getItem('sj_chat_font') || '1.15');
+  const apply = () => { log.style.fontSize = size + 'rem'; };
+  apply();
+  log.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    size = Math.min(2.2, Math.max(0.7, size + (e.deltaY < 0 ? 0.08 : -0.08)));
+    localStorage.setItem('sj_chat_font', size);
+    apply();
+  }, { passive: false });
+})();
 </script>
 </body>
 </html>

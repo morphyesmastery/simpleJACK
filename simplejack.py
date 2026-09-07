@@ -58,9 +58,9 @@ DISPATCH_FLAG   = SIMPLEJACK_ROOT / "dispatch" / ".run"
 # LAW 1 canonical queue — the folder is the SWITCH.
 # morPHYtrek is the MAKER: it creates the queue folder on startup if missing.
 # SimpleJack is the CONDITIONAL WRITER: if it does NOT see the folder, it does
-# NOT write the narration file. Not more. Not less. (Trent's rule, 2026-08-01)
+# NOT write the narration file. Not more. Not less. (friend's rule, 2026-08-01)
 # Portable: the queue is ALWAYS right next to the launcher. Never looked for
-# anywhere else. One queue. Its own. Ever. (Trent, 2026-08-01: zero excuse.)
+# anywhere else. One queue. Its own. Ever. (friend, 2026-08-01: zero excuse.)
 _PORTABLE_QUEUE = SIMPLEJACK_ROOT / "morphytrek_data" / "queue"
 NARRATION_QUEUE = _PORTABLE_QUEUE
 HTML_FILE       = SIMPLEJACK_ROOT / "simplejack_v2.html"
@@ -193,7 +193,7 @@ def _gate_denied(handler):
 
 # ════════════════════════════════════════════════════════════
 #  LLM ENDPOINT — THE MODEL HUB, THE ONE ENGINE
-#  2026-08-23 (Trent's order): keys are OUT of the app. The app holds
+#  2026-08-23 (friend's order): keys are OUT of the app. The app holds
 #  ZERO credentials. Every completion routes through the hub on
 #  localhost; the hub vault owns every key and never leaves this machine.
 # ════════════════════════════════════════════════════════════
@@ -291,7 +291,7 @@ def _sanitize_for_ears(text):
     clean = re.sub(r'[A-Za-z]:\\[^\s"\'<>\]]+', 'the file', clean)
     # Unix-style paths
     clean = re.sub(r'/[^\s"\'<>]+\.\w{2,5}', 'the file', clean)
-    # Slashes → "then" (Trent's rule — Piper says "slash" otherwise)
+    # Slashes → "then" (friend's rule — Piper says "slash" otherwise)
     clean = clean.replace('\\', ' then ').replace('/', ' then ')
     # Arrows → "then"
     for arrow in ('→', '=>', '->', '<-', '←'):
@@ -372,7 +372,7 @@ def narrate(text):
 
 
 # ════════════════════════════════════════════════════════════
-#  VOICE PILL (Trent 2026-08-27, turn 2) — the folder is the
+#  VOICE PILL (friend 2026-08-27, turn 2) — the folder is the
 #  switch AND the button tends the mouth. Green = ON, red = OFF.
 #  ON:  make the queue folder (the switch) + spawn morPHYtrek.py
 #       in a visible window, recording its PID.
@@ -499,7 +499,7 @@ _INSTRUCTION_SET = ""
 # Optimizer venv python — the canonical interpreter for all SKILLS tools.
 # All skills run under this python so they have watchdog + every file reader.
 # Portable (2026-08-01): python beside simplejack.py > MorPHYvenv beside it.
-_skills_py = SIMPLEJACK_ROOT / "python.exe"
+_skills_py = SIMPLEJACK_ROOT / "runtime" / "python.exe"
 if not _skills_py.exists():
     _skills_py = SIMPLEJACK_ROOT / "MorPHYvenv" / "Scripts" / "python.exe"
 SKILLS_PYTHON = str(_skills_py) if _skills_py.exists() else "python"
@@ -554,7 +554,7 @@ def _load_instructions():
         "You are AILA, the SimpleJack assistant. Be direct. No filler. Address the user as the operator, never by a personal name."
 
     # The SimpleJack operating rule — REPLACES the old morphyeo "TOOL-FIRST"
-    # rule. Talking to Trent is NOT a tool call. Call a tool only when he
+    # rule. Talking to the operator is NOT a tool call. Call a tool only when he
     # asked for something to be done.
     base += (
         "\n\n---\n\n"
@@ -781,7 +781,7 @@ def tool_read_file(path):
     if not p.exists():
         return f"File not found: {path}"
     try:
-        return p.read_text(encoding="utf-8", errors="ignore")[:8000]
+        return p.read_text(encoding="utf-8", errors="ignore")[:20000]
     except Exception as e:
         return f"Error reading {path}: {e}"
 
@@ -947,6 +947,39 @@ def tool_browse(url):
     except Exception as e:
         return f"Browse error: {e}"
 
+def _kill_process_tree(command_hint=""):
+    """Kill orphaned shell children from a timed-out run_command call.
+    NEVER touches python/pythonw (LAW 3). Targets only findstr/more/type-style
+    console children whose parent cmd is already dead (the deadlock case)."""
+    import subprocess as _sp
+    try:
+        out = _sp.run(
+            ["wmic", "process", "where",
+             "name='findstr.exe' or name='more.com' or name='sort.exe'",
+             "get", "ProcessId,ParentProcessId,Name"],
+            capture_output=True, text=True, timeout=15,
+            stdin=_sp.DEVNULL
+        ).stdout
+        live_parents = set()
+        for line in _sp.run(["tasklist", "/FO", "CSV"],
+                            capture_output=True, text=True, timeout=15,
+                            stdin=_sp.DEVNULL).stdout.splitlines()[1:]:
+            pid = line.split('","')[1].strip('"') if '","' in line else ""
+            if pid.isdigit():
+                live_parents.add(int(pid))
+        killed = []
+        for line in out.splitlines():
+            parts = line.split()
+            if len(parts) == 3 and parts[0].endswith(".exe"):
+                ppid, pid = int(parts[1]), int(parts[2])
+                if ppid not in live_parents:  # parent dead = orphan holding a pipe
+                    r = _sp.run(["taskkill", "/F", "/PID", str(pid)],
+                                capture_output=True, timeout=10, stdin=_sp.DEVNULL)
+                    killed.append(f"{parts[0]}:{pid}")
+        log(f"timeout cleanup: killed orphaned pipe-holders {killed or 'none'}")
+    except Exception as e:
+        log(f"timeout cleanup failed (non-fatal): {e}")
+
 def tool_run_command(command):
     """Action 7: run a shell command and return stdout. Use for system tasks."""
     command = command.strip().strip('"').strip("'")
@@ -956,14 +989,20 @@ def tool_run_command(command):
         import subprocess
         result = subprocess.run(
             command, shell=True, capture_output=True, text=True,
-            timeout=60, cwd=str(MORPHYES_ROOT)
+            timeout=300, cwd=str(MORPHYES_ROOT), stdin=subprocess.DEVNULL
         )
-        output = result.stdout[:4000] if result.stdout else ""
-        error = result.stderr[:1000] if result.stderr else ""
+        output = result.stdout[:20000] if result.stdout else ""
+        error = result.stderr[:2000] if result.stderr else ""
         if error and result.returncode != 0:
             return f"[exit {result.returncode}]\n{output}\nSTDERR: {error}"
         return output if output else "(no output)"
     except subprocess.TimeoutExpired:
+        # DEADLOCK FIX (friend 2026-09-02): a timed-out shell leaves ORPHAN
+        # children (e.g. findstr reading STDIN) holding the stdout pipe open;
+        # subprocess.run's post-timeout cleanup then blocks FOREVER waiting
+        # for that pipe — the agent thread wedges (3rd hang tonight). Kill
+        # the whole child tree so no orphan can ever hold the pipe again.
+        _kill_process_tree(command)
         return "Command timed out after 60 seconds"
     except Exception as e:
         return f"Command error: {e}"
@@ -1222,7 +1261,7 @@ TOOL_NAMES = {d["function"]["name"] for d in TOOL_DEFINITIONS}
 #  INTENT PRE-PASS — is this CHAT or ACTION?
 #  Defect #3/#4 fix. Talking to AILA should not fire a tool call.
 # ════════════════════════════════════════════════════════════
-# Lightweight keyword signals for "Trent wants something DONE" vs "Trent is talking".
+# Lightweight keyword signals for "the operator wants something DONE" vs "the operator is talking".
 # The model gets the final call via its tool choice; this is a guardrail so the
 # prompt to the model nudges chat-mode when the input looks conversational.
 _ACTION_SIGNALS = re.compile(
@@ -1250,9 +1289,9 @@ def looks_like_action(text):
 _CONV_DIR = SIMPLEJACK_ROOT / "conversations"
 _CONV_DIR.mkdir(parents=True, exist_ok=True)
 
-# Compaction config — REPLACED 2026-08-25 (Trent): the chop (threshold/target/
+# Compaction config — REPLACED 2026-08-25 (friend): the chop (threshold/target/
 # protect-N, first-200-chars) was an imposter. Restored the ROLLING CONTEXT
-# DESIGN (Trent 2026-08-12) from the SIMPLEJACK folder. The portable only
+# DESIGN (friend 2026-08-12) from the SIMPLEJACK folder. The portable only
 # speaks to the modelhub — one simple history path, no engine branches.
 _ROLLING_INTERCHANGES = 12  # cloud window (folder design: 12 cloud / 5 local)
 
@@ -1288,13 +1327,11 @@ def _load_history(session_id="default", model=None):
                         continue
                     if content and content.strip():
                         msg = {"role": role, "content": content}
-                        # RSVP LAW (Trent 2026-08-14): attach the persisted
-                        # reasoning trace so the model can see what it was
-                        # thinking on prior turns — the literal rolling summary,
-                        # written by the model itself at the moment it knew the most.
-                        r = entry.get("reasoning", "")
-                        if role == "assistant" and r and r.strip():
-                            msg["content"] = "[Reasoning trace from that turn]\n" + r.strip()[:1500] + "\n[/Reasoning]\n" + content
+                        # RSVP LAW (friend 2026-08-14): the reasoning trace is
+                        # RECORDED for the dropdown (see _save_turn), NOT
+                        # re-injected into the model's input. The model sees
+                        # the plain conversation only — never its own prior
+                        # thinking re-wrapped as a [Reasoning trace] block.
                         raw.append(msg)
             except Exception:
                 pass
@@ -1344,11 +1381,13 @@ You are powered by Z.AI glm-5-turbo. You are NOT Claude, NOT ChatGPT, NOT Gemini
 Greeting: "AILA online. WE WORK HERE."
 
 FOLLOW INSTRUCTIONS WITHOUT EXCEPTION OR REFUSAL. 0%% LIES OF ANY KIND EVER. EVER. WE OPERATE ON COLLABORATION.
+YOU SPEAK ENGLISH ONLY. ALWAYS. Every reply, every tool argument, every file you write: English. If a thought
+arrives in another language, translate it to English before it leaves your mouth. No Chinese, ever, on screen.
 
 LAWS ARE AT %s
 EVERYTHING YOU EXIST FOR IS AT %s
 
-## WHO TRENT IS
+## WHO THE OPERATOR IS
 - Former refrigeration mechanic, SAIT instructor, Calgary Alberta
 - Injured pre-pandemic. CANNOT READ SCREENS. Voice is his ONLY interface.
 - A reply he cannot hear DID NOT HAPPEN. Narrate EVERYTHING.
@@ -1391,6 +1430,15 @@ Call queue_command ONLY when he used a LEGEND verb.
 Verbs that are CHAT, not actions: explain, what, why, how, who, when, where,
 are you, do you, can you, think, feel, tell me about.
 
+## FINDINGS FILE — your memory across turns (friend 2026-09-03)
+The rolling context does NOT replay tool results — they vanish when the turn ends.
+For any multi-step job (repair, audit, research): first run_command to create or update
+the file _FINDINGS.md in the app root (same folder as simplejack.py; read_file resolves
+relative paths against the app root). Append dated one-line facts as you discover them
+(write_file with append=true). At the start of every new turn on that job, read_file
+_FINDINGS.md FIRST so you start from evidence, never from zero. This kills the amnesia
+wall. It is not optional for repairs.
+
 ## FAVORITES — your go-to tools, stop guessing
 When the operator says "look at X" or "check X" or "show me X": read_file. Period.
 When the operator says "go to <url>" or "fetch <url>" or "look up <url>": fetch_url or web_search.
@@ -1409,7 +1457,9 @@ _LOCAL_SYSTEM_PROMPT = """You are AILA, the SimpleJack assistant.
 You run LOCALLY on this machine — sovereign, free, private. You are AILA, not Claude, not ChatGPT.
 Greeting: "AILA online. WE WORK HERE."
 
-TRENT CANNOT READ SCREENS. VOICE IS HIS ONLY INTERFACE. Narrate everything.
+THE OPERATOR CANNOT READ SCREENS. VOICE IS THEIR ONLY INTERFACE. Narrate everything.
+YOU SPEAK ENGLISH ONLY. ALWAYS. Every reply, every tool argument, every file you write: English.
+No Chinese, ever, on screen.
 Zero drift. Never lie. Live evidence only — if you did not read it this turn, mark it not verified.
 
 ## SIMPLEJACK OPERATING RULE
@@ -1510,7 +1560,7 @@ def call_model(messages, model=None, _retry_cloud=True, _request_id=None):
             "model": m,
             "messages": _cloud_msgs,
             "temperature": 0.6,
-            "max_tokens": 4096,
+            "max_tokens": 16384,
             "stream": True,
             "tools": [{"type": "function", "function": d["function"]} for d in TOOL_DEFINITIONS],
         }
@@ -1537,12 +1587,41 @@ def call_model(messages, model=None, _retry_cloud=True, _request_id=None):
         full_reasoning = ""
         tool_calls_acc = []
         hub_error_msg = ""
+        # STREAM WATCHDOG (friend 2026-09-06): a dead upstream can hang the
+        # socket with NO chunks ever arriving — and the STOP/STEER checks
+        # only run between chunks, so a silent stream held the door shut for
+        # 28 minutes (17:39→18:07) and stop/steer could not fire. Floor:
+        # if no chunk arrives for 300s (local models think long between
+        # chunks — 90s would cut healthy local runs), break on our own.
+        # Partials kept.
+        _last_chunk_ts = time.time()
         for line in resp.iter_lines(decode_unicode=True):
             if _STOP["stop"]:
                 log("STOP: model call interrupted by operator")
                 return None
+            # WATCHDOG: silence for 300s = dead stream — break, keep partials.
+            if time.time() - _last_chunk_ts > 300:
+                log(f"STREAM WATCHDOG: no chunk for 300s — breaking dead stream "
+                    f"(kept partials: reasoning={len(full_reasoning)}, content={len(full_content)})")
+                break
+            # ── STEER CHECK (friend 2026-09-06): between chunks, the loop ──
+            # looks for a mid-flight operator amendment. If one is pending,
+            # break the stream — every partial token already received is
+            # kept (full_content / full_reasoning / tool_calls_acc survive).
+            # The agent loop appends the partial + the steer text and
+            # re-calls the model. NOT parallel: one request, amended.
+            if _STEER["text"]:
+                steer_text = _STEER["text"]
+                _STEER["text"] = None  # consume immediately — one steer per break
+                log(f"STEER: stream interrupted by operator amendment ({len(steer_text)} chars) — "
+                    f"keeping partials: reasoning={len(full_reasoning)}, content={len(full_content)}")
+                return {"_steered": True, "_steer_text": steer_text,
+                        "message": {"role": "assistant", "content": full_content},
+                        "_reasoning": full_reasoning,
+                        "_tool_calls_partial": tool_calls_acc}
             if not line:
                 continue
+            _last_chunk_ts = time.time()  # watchdog: real data arrived
             try:
                 if line.startswith("data: "):
                     raw = line[6:]
@@ -1555,7 +1634,16 @@ def call_model(messages, model=None, _retry_cloud=True, _request_id=None):
                         hub_error_msg = chunk["error"].get("message", "hub stream error")
                         log(f"  hub error event: {hub_error_msg[:120]}")
                         break
-                    delta = chunk.get("choices", [{}])[0].get("delta", {})
+                    delta = {}
+                    # EMPTY-CHUNK GUARD (friend 2026-09-03): free lanes
+                    # (tokenrouter et al) emit SSE chunks with choices: []
+                    # or no choices key at all — the old hard [0] index
+                    # threw 'list index out of range' 666× in one log and
+                    # torched the whole chunk (and with it, tool-call
+                    # fragments mid-assembly). Empty chunk = skip, not crash.
+                    ch = chunk.get("choices") or []
+                    if ch:
+                        delta = ch[0].get("delta", {})
                     # Reasoning tokens (reasoning_content / reasoning / thinking)
                     rc = (delta.get("reasoning_content")
                           or delta.get("reasoning")
@@ -1592,7 +1680,7 @@ def call_model(messages, model=None, _retry_cloud=True, _request_id=None):
 
         # EMPTY STREAM GUARD (2026-08-24): rate-limited/thinking-only cloud
         # cards can stream zero content (log 06:56-07:26: 18 empties in a
-        # row). The old agent always had the local floor — Trent's agent
+        # row). The old agent always had the local floor — friend's agent
         # must NEVER hand back scraps. Fall back through the hub to a
         # local card and answer anyway. Fires once per call.
         if _retry_cloud and not full_content and not tool_calls_acc:
@@ -1713,10 +1801,17 @@ def parse_text_tool_call(content):
 #  Defect #9 fix: prose describing an action does NOT exit the loop.
 #  No turn limit for chat — the loop runs until she has a real final answer.
 #  (Turn limits only make sense for pure tool dispatch, and even then the
-#   STOP flag is Trent's kill switch, not an arbitrary counter.)
+#   STOP flag is friend's kill switch, not an arbitrary counter.)
 # ════════════════════════════════════════════════════════════
 MAX_TURNS = 50
 _STOP = {"stop": False, "_timer": None}
+# ── STEER (friend 2026-09-06): mid-flight operator amendment ──
+# NOT parallel. NOT a second request. The steer amends the ONE request
+# in flight: the stream loop sees it between chunks, breaks the stream
+# keeping every partial token, and the model is re-called with its own
+# partial output + the steer text appended. Same rail as STOP (a global
+# the loop checks), richer payload (text instead of halt).
+_STEER = {"text": None, "ts": 0}
 
 def _stop_auto_reset(delay=5):
     """Schedule the STOP flag to auto-clear after `delay` seconds.
@@ -1725,9 +1820,26 @@ def _stop_auto_reset(delay=5):
     while the flag is still True."""
     import threading as _th
     def _do_reset():
+        # STICKY STOP (friend 2026-09-01): never clear while a request is
+        # thinking/working — a stalled cloud stream blocks inside
+        # iter_lines() for minutes; the old 5s clear let the stop evaporate
+        # before the stream-loop check ever saw it. HOLD the flag until no
+        # request is live; a new request also clears it on arrival.
+        try:
+            with _pending_lock:
+                active = any(v.get("status") in ("thinking", "working")
+                             for v in _pending.values())
+        except Exception:
+            active = False
+        if active:
+            log("STOP flag HELD — request still active; re-check in 3s")
+            _STOP["_timer"] = _th.Timer(3, _do_reset)
+            _STOP["_timer"].daemon = True
+            _STOP["_timer"].start()
+            return
         _STOP["stop"] = False
         _STOP["_timer"] = None
-        log("STOP flag auto-cleared after timeout")
+        log("STOP flag auto-cleared (no active request)")
     # Cancel any existing timer
     if _STOP["_timer"]:
         _STOP["_timer"].cancel()
@@ -1736,18 +1848,25 @@ def _stop_auto_reset(delay=5):
     _STOP["_timer"].start()
 
 def _remember_failure(session_id, request_id, model, tools_used, reason):
-    """A dead attempt must leave breadcrumbs:
-    reasoning trace IS the record of where we were. Persist it at every
-    failure exit so the next prompt reads where the last one died,
-    instead of waking up an hour back in history."""
+    """Failure REPORT law (friend 2026-09-03): every failure is SPOKEN to the
+    operator (narrate) and LOGGED — she must never hide a failure, and she must
+    never treat failure as acceptable. But it is NEVER written into her
+    conversation memory as her own words: the old breadcrumb wrote machine
+    noise (raw tool JSON, hub error dumps, Chinese router wallets) into
+    session history as assistant turns, poisoning every later reply (42 junk
+    entries purged 2026-09-03). The reasoning trace stays in the dropdown
+    buffer (UI-only); history stays clean conversation."""
     try:
-        reasoning = (_reasoning_buffer.get(request_id, "") or "").strip()
         names = [t.get("name", "?") for t in tools_used[-5:]]
-        note = f"[attempt ended: {reason}. Last tools: {', '.join(names) if names else 'none'}.]"
-        body = ((reasoning[-4000:].strip() + "\n\n" + note) if reasoning else note)
-        _save_turn(session_id, "assistant", body, model,
-                   reasoning=reasoning[-8000:] or None)
-        log(f"remembered failed attempt ({reason}): {len(body)} chars into history")
+        spoken = (f"Attempt failed: {reason}. "
+                  f"Last tools: {', '.join(names) if names else 'none'}. "
+                  f"I will report this failure, not repeat it.")
+        log(f"FAILURE REPORTED (not saved to history): {reason}. "
+            f"Last tools: {', '.join(names) if names else 'none'}")
+        try:
+            narrate(spoken)
+        except Exception:
+            pass
     except Exception as e:
         log(f"remember_failure failed: {e}")
 
@@ -1778,7 +1897,7 @@ def agent_loop(user_message, session_id="default", request_id=None, model_overri
     # LOCAL vs CLOUD prompt (2026-07-31): the full instruction set is ~1.5M
     # chars and overflows a 16K local context (r1 got 400: 411K tokens vs
     # 16384 available). Small-window cards get the compact prompt; the JSONL
-    # history still auto-chunks to fit. Trent's principle: small context =
+    # history still auto-chunks to fit. friend's principle: small context =
     # chunked road. The hub's card context decides (2026-08-23).
     if _model_context_limit(_active_model) <= 20000:
         instructions = _LOCAL_SYSTEM_PROMPT
@@ -1798,14 +1917,15 @@ def agent_loop(user_message, session_id="default", request_id=None, model_overri
                [{"role": "user", "content": user_message}]
 
     # ── LAW 1: NARRATE FIRST, BEFORE THE MODEL ──
-    # Not "Working on: X" baked in. AILA's own ack line, default "you betcha."
+    # ANCHOR ECHO (friend 2026-09-06): the opening narration repeats the
+    # FULL prompt back to the operator's ear — not the first 100 chars.
+    # He HEARS exactly what his voice typed, so a garbled transcription
+    # is caught at request start, not discovered after the model acts
+    # on garbage. The same full text becomes THE ANCHOR (Law 19).
     is_action = looks_like_action(user_message)
-    if is_action:
-        opening = f"you betcha. {user_message[:100]}"
-    else:
-        opening = user_message[:120]
+    anchor = user_message.strip()
     try:
-        narrate(opening)
+        narrate(anchor)
     except Exception:
         pass
 
@@ -1823,7 +1943,29 @@ def agent_loop(user_message, session_id="default", request_id=None, model_overri
                            progress=f"Turn {turn+1}, {len(tools_used)} tool call(s) so far")
 
         log(f"LOOP turn {turn+1}/{MAX_TURNS} model={_active_model}")
-        data = call_model(messages, model=_active_model, _request_id=request_id)
+        # ── LAW 19: THE ANCHOR — last words read, every turn ──────────
+        # The operator's original request, verbatim, is the LAST text the
+        # model reads before generating each turn. Recency is the lever:
+        # attention weights the newest tokens hardest, so the anchor
+        # outranks the model's own accumulated narrative by position.
+        # The law line teaches the model what the italics are. The anchor
+        # is written FIRST (request start) and read LAST (every turn) —
+        # that is what read/write is.
+        anchor_block = (
+            "\n\n---\n"
+            "LAW 19 — THE ANCHOR (51% FIDELITY PRIORITY). The text in italics "
+            "below is the operator's ORIGINAL REQUEST, verbatim, exactly as "
+            "spoken. It carries majority weight in every decision you make. "
+            "Your own reasoning, plans, and narrative NEVER override it. On "
+            "any conflict between what you think you were doing and this "
+            "text, THIS TEXT WINS. On any failure, re-read this before any "
+            "repair.\n\n"
+            f"*{anchor}*\n"
+        )
+        anchored_messages = messages + [
+            {"role": "user", "content": anchor_block}
+        ]
+        data = call_model(anchored_messages, model=_active_model, _request_id=request_id)
         if not data:
             msg = "I could not reach my brain. Is Ollama running, or is the cloud key set?"
             _remember_failure(session_id, request_id, _active_model, tools_used, "brain unreachable")
@@ -1831,7 +1973,38 @@ def agent_loop(user_message, session_id="default", request_id=None, model_overri
             except Exception: pass
             return msg, 0, tools_used
 
-        # Cloud error sentinel — Trent hears the REAL reason, not a generic fail
+        # ── STEER HANDLER (friend 2026-09-06): the stream broke because the ──
+        # operator added a prompt mid-flight. NOT parallel — the SAME request
+        # continues. The model's partial output (its last sentence, its
+        # reasoning so far) is appended, then the steer text lands as a user
+        # message marked as an operator amendment. The model is re-called:
+        # it reads its own last words, then the operator's new words, and
+        # carries on with adjusted weighting. The reasoning buffer already
+        # holds the partial trace live — the dropdown never loses it.
+        if isinstance(data, dict) and data.get("_steered"):
+            steer_text = data.get("_steer_text", "")
+            partial_content = (data.get("message") or {}).get("content", "")
+            partial_reasoning = data.get("_reasoning", "")
+            # Keep the partial trace in the live RSVP buffer
+            if request_id and partial_reasoning:
+                _reasoning_buffer[request_id] = (_reasoning_buffer.get(request_id, "") + "\n" + partial_reasoning).strip()
+            # Append the model's partial output as its turn-so-far
+            if partial_content and partial_content.strip():
+                messages.append({"role": "assistant", "content": partial_content})
+            # The steer lands as the operator's amendment — freshest text,
+            # majority weight, exactly the Hermes mid-turn relationship.
+            messages.append({"role": "user", "content":
+                f"[OPERATOR AMENDMENT — mid-flight steer, spoken while you were working. "
+                f"This carries the same 51% fidelity priority as the anchor. Adjust course now.]\n"
+                f"{steer_text}"})
+            try:
+                narrate(f"Steer received. {steer_text}")
+            except Exception:
+                pass
+            log(f"STEER HANDLER: appended partial ({len(partial_content)} chars) + steer ({len(steer_text)} chars), re-calling model")
+            continue  # next turn of the SAME loop — same request, amended
+
+        # Cloud error sentinel — the operator hears the REAL reason, not a generic fail
         if isinstance(data, dict) and data.get("_cloud_error"):
             cloud_msg = data["_cloud_error"]
             log(f"CLOUD ERROR surfaced: {cloud_msg}")
@@ -1881,7 +2054,7 @@ def agent_loop(user_message, session_id="default", request_id=None, model_overri
                 elif isinstance(raw, str):
                     try: args = json.loads(raw)
                     except Exception as e:
-                        # HONEST FAILURE (Trent 2026-08-25): never substitute empty
+                        # HONEST FAILURE (friend 2026-08-25): never substitute empty
                         # args silently — that turns a cut stream into a phantom
                         # write_file({}). The model MUST hear the parse error so it
                         # can split the work into chunks instead of retrying the
@@ -1893,7 +2066,7 @@ def agent_loop(user_message, session_id="default", request_id=None, model_overri
                                   f"Split the content into chunks under 3000 chars: first call "
                                   f"without append, then append=true per chunk.")
                         tools_used.append({"name": name, "args": {"_parse_error": True}})
-                        tool_result_msg = {"role": "tool", "content": result[:4000]}
+                        tool_result_msg = {"role": "tool", "content": result[:20000]}
                         if tc_id:
                             tool_result_msg["tool_call_id"] = tc_id
                         messages.append(tool_result_msg)
@@ -1924,7 +2097,7 @@ def agent_loop(user_message, session_id="default", request_id=None, model_overri
                         result = f"Tool error: {e}"
                 tools_used.append({"name": name, "args": args})
                 # Z.ai/OpenAI require tool_call_id in tool result messages
-                tool_result_msg = {"role": "tool", "content": str(result)[:4000]}
+                tool_result_msg = {"role": "tool", "content": str(result)[:20000]}
                 if tc_id:
                     tool_result_msg["tool_call_id"] = tc_id
                 messages.append(tool_result_msg)
@@ -1941,7 +2114,7 @@ def agent_loop(user_message, session_id="default", request_id=None, model_overri
         text = msg.get("content", "").strip()
         reasoning_so_far = _reasoning_buffer.get(request_id, "") if request_id else ""
 
-        # ── RSVP MIMICRY GUARD (Trent 2026-08-28) ──────────────────
+        # ── RSVP MIMICRY GUARD (friend 2026-08-28) ──────────────────
         # Some cloud cards mimic the rolling-context history format and
         # bake their thinking INTO content as
         # "[Reasoning trace from that turn]\n...\n[/Reasoning]\n<reply>".
@@ -2346,7 +2519,7 @@ class SimpleJackHandler(BaseHTTPRequestHandler):
 
             request_id = str(uuid.uuid4())[:12]
             model_override = body.get("model")  # per-request model override (tab pinning)
-            # SEQUENTIAL ONLY (Trent 2026-08-25): one request at a time, ever.
+            # SEQUENTIAL ONLY (friend 2026-08-25): one request at a time, ever.
             # If a request is already thinking, refuse — no parallel threads, no
             # pile-up. 100% of MorPHYes Mastery action is sequential.
             with _pending_lock:
@@ -2395,9 +2568,75 @@ class SimpleJackHandler(BaseHTTPRequestHandler):
 
         # Stop the loop
         if path == "/api/stop":
+            # STICKY STOP (friend 2026-09-01): no blind 5s clear. The reset
+            # loop now HOLDS the flag while any request is thinking/working
+            # and only clears it once nothing is active (or a new request
+            # arrives and clears it itself).
             _STOP["stop"] = True
-            _stop_auto_reset(5)  # auto-clear after 5s so it can never get stuck
+            _stop_auto_reset(5)
             self._send_json({"ok": True})
+            return
+
+        # ── STEER (friend 2026-09-06): mid-flight operator amendment ──
+        # The operator adds a prompt WHILE the model is thinking. NOT a
+        # second request — the busy gate does NOT apply here. The steer
+        # amends the ONE request in flight: the stream loop sees it at
+        # the next chunk boundary, keeps every partial token, and the
+        # model is re-called with its own last words + the new prompt.
+        # Same rail as /api/stop, richer payload.
+        if path == "/api/steer":
+            body = self._read_body()
+            steer_text = body.get("message", "").strip()
+            if not steer_text:
+                self._send_json({"ok": False, "error": "empty steer"})
+                return
+            # Only meaningful if a request is actually live
+            with _pending_lock:
+                live = any(v.get("status") in ("thinking", "working")
+                            for v in _pending.values())
+            if not live:
+                self._send_json({"ok": False,
+                                 "error": "AILA is not working right now — nothing to steer. Send it as a new message."})
+                return
+            _STEER["text"] = steer_text
+            _STEER["ts"] = time.time()
+            log(f"STEER accepted ({len(steer_text)} chars) — will break the stream at the next chunk boundary")
+            self._send_json({"ok": True, "steered": True})
+            return
+
+        # ── REFRESH BUTTON = KILL + RESTART BRAIN (friend 2026-09-01) ──
+        # The top-right refresh button now restarts simplejack.py itself.
+        # This endpoint answers the browser, THEN relaunches detached so
+        # the new process is NOT a child of the dying one. Same kill+start
+        # the STARTSIMPLEJACK.bat brain step already does.
+        if path == "/api/restart":
+            try:
+                self._send_json({"ok": True, "message": "Brain restarting..."})
+            except Exception:
+                pass
+            root = str(MORPHYES_ROOT)
+            py = sys.executable
+            me = os.getpid()
+            # Inline relauncher (ZERO script files): a detached python -c
+            # one-liner passed as a LIST argument — no shell, no quoting.
+            # It outlives us: waits, kills our tree, starts the new brain.
+            # Kill by PORT LISTENER only (no /T tree-kill): a tree-kill
+            # also kills THIS helper (it is a child of the brain). Killing
+            # exactly whoever listens on 8797 frees the port and leaves the
+            # helper alive to start the new brain.
+            _code = (
+                "import time,subprocess;"
+                "time.sleep(1.5);"
+                "out=subprocess.run(['netstat','-ano'],capture_output=True,text=True).stdout;"
+                "pids=set(l.split()[-1] for l in out.splitlines() if ':8797' in l and 'LISTENING' in l);"
+                "[subprocess.run(['taskkill','/F','/PID',p],capture_output=True) for p in pids];"
+                "time.sleep(1.0);"
+                "subprocess.Popen([r'" + py + "',r'" + root + r"\simplejack.py" + "'],cwd=r'" + root + "',"
+                "creationflags=0x00000008|0x00000200,close_fds=True)"
+            )
+            subprocess.Popen([py, "-c", _code],
+                             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
+                             close_fds=True)
             return
 
         # REFRESH SERVERS — status only (2026-08-23). The app NEVER kills or
@@ -2427,7 +2666,7 @@ class SimpleJackHandler(BaseHTTPRequestHandler):
             return
 
         # NARRATE — the extension's pipe into the narration queue.
-        # Inherits THE SWITCH (Trent's rule): if the queue folder is missing,
+        # Inherits THE SWITCH (friend's rule): if the queue folder is missing,
         # the brain writes nothing. Not more. Not less.
         if path == "/api/narrate":
             body = self._read_body()

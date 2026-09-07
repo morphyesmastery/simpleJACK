@@ -1,6 +1,6 @@
-// ════════════════════════════════════════════════════════════
+// ============================================================
 // morPHYtrek Chrome Extension — Background Service Worker
-// ════════════════════════════════════════════════════════════
+// ============================================================
 
 // Create right-click context menu on install
 chrome.runtime.onInstalled.addListener(() => {
@@ -9,17 +9,28 @@ chrome.runtime.onInstalled.addListener(() => {
   // Create context menu for selected text
   chrome.contextMenus.create({
     id: "morphytrek-read-selection",
-    title: "🔊 Read aloud (morPHYtrek)",
+    title: "Read aloud (morPHYtrek)",
     contexts: ["selection"]
   });
   
   // Context menu for page
   chrome.contextMenus.create({
     id: "morphytrek-read-page",
-    title: "🔊 Read page (morPHYtrek)",
+    title: "Read page (morPHYtrek)",
     contexts: ["page"]
   });
   
+  // Articulate / Promote - offline text cleanup via morPHYtrek bridge
+  chrome.contextMenus.create({
+    id: "morphytrek-articulate",
+    title: "Articulate with morPHYtrek",
+    contexts: ["selection"]
+  });
+  chrome.contextMenus.create({
+    id: "morphytrek-promote",
+    title: "Promote with morPHYtrek",
+    contexts: ["editable"]
+  });
   console.log("[morPHYtrek] Extension installed, context menus created");
 });
 
@@ -30,6 +41,12 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   }
   if (info.menuItemId === "morphytrek-read-page") {
     chrome.tabs.sendMessage(tab.id, { type: "READ_PAGE" });
+  }
+  if (info.menuItemId === "morphytrek-articulate") {
+    chrome.tabs.sendMessage(tab.id, { type: "ARTICULATE_SELECTION" }).catch(() => {});
+  }
+  if (info.menuItemId === "morphytrek-promote") {
+    chrome.tabs.sendMessage(tab.id, { type: "PROMOTE_FIELD" }).catch(() => {});
   }
 });
 

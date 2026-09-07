@@ -660,7 +660,7 @@ def heartbeat_loop():
         time.sleep(5)
 
 # ════════════════════════════════════════════════════════════
-#  STACK STATUS PROBES — feed the widget icon line (Trent 2026-08-24)
+#  STACK STATUS PROBES — feed the widget icon line (friend 2026-08-24)
 #  Grey = dead/missing. Green = alive. Yellow = working hard.
 #  PURE STDLIB (bundled runtime has no psutil). Cheap + cached:
 #  port connects, pid file + ctypes OpenProcess, one Ollama API call.
@@ -856,7 +856,7 @@ class MorPHYtrekGUI:
         # RSVP timer
         self._rsvp_after_id = None
 
-        # ── STACK STATUS LINE — Trent's design (2026-08-24): meaningful
+        # ── STACK STATUS LINE — friend's design (2026-08-24): meaningful
         # symbols, grey/green, yellow when that part is working hard.
         # Legend button (?) cycles: hidden → icons+names → icons only.
         self.stack_frame = tk.Frame(self.root, bg="#0a0b0f")
@@ -1215,11 +1215,160 @@ class _ExtHandler(BaseHTTPRequestHandler):
             else:
                 self._send_json({"error": "no text"}, 400)
             return
+        if path in ("/api/articulate", "/api/promote"):
+            body = self._read_body()
+            raw_text = body.get("text", "")
+            if not raw_text:
+                self._send_json({"error": "no text"}, 400)
+                return
+            try:
+                cleaned = _mt_clean(raw_text.strip())
+                if path == "/api/articulate":
+                    self._send_json({"success": True, "text": cleaned})
+                else:
+                    md, html = _mt_promote(cleaned)
+                    self._send_json({"success": True, "md": md, "html": html})
+            except Exception as e:
+                self._send_json({"error": str(e)}, 503)
+            return
         self._send_json({"error": "not found"}, 404)
 
     def log_message(self, *args):
         pass
 
+# ── ARTICULATE / PROMOTE helpers (OFFLINE, via LOCAL OLLAMA — friend 2026-09-03) ──
+# DESIGN LAW FIX: the comment always said "offline, via local Ollama" but the
+# code called OpenRouter FIRST. OpenRouter free lane 429s when the daily quota
+# dies → handler returns 503 → the extension wrongly says "bridge offline".
+# Local Josie answers in ~1s on this machine (live-verified). LOCAL IS PRIMARY.
+# OpenRouter stays ONLY as fallback for the rare case Ollama is down.
+_MT_OL_URL = "http://127.0.0.1:11434/api/chat"
+_MT_OL_MODELS = ("josie-4b-tools:latest", "josie-2b-tools:latest")
+_MT_OR_URL = "https://openrouter.ai/api/v1/chat/completions"
+_MT_OR_KEY = "sk-or-...1339"
+_MT_OR_MODEL = "google/gemma-4-31b-it:free"
+_MT_ACRO = {"i","ai","app","gpu","cpu","ok","pm","am","html","md","os","tts","api","ucp","ceo","usa","llc","ps","po","kc","bc","us","morphyes","morphytrek","morphyesmastery","josie"}
+
+def _mt_decaps(t):
+    letters = [c for c in t if c.isalpha()]
+    if letters and sum(1 for c in letters if c.isupper()) / len(letters) > 0.7:
+        t = t.lower()
+        t = re.sub(r"(^|[.!?]\s+|\n)([a-z])", lambda m: m.group(1) + m.group(2).upper(), t)
+        t = re.sub(r"\bi\b", "I", t)
+        return t
+    def _w(m):
+        w = m.group(0)
+        if w.lower() in _MT_ACRO:
+            return w
+        return w[0] + w[1:].lower()
+    return re.sub(r"\b[A-Z]{2,}\b", _w, t)
+
+def _mt_ol_call(sys_p, user_t, temp):
+    """LOCAL FIRST (2026-09-03): Josie via Ollama — offline, sovereign, ~1s.
+    think:false — reasoning would eat num_predict and leave content empty."""
+    import urllib.request as _ur
+    last_err = None
+    for model in _MT_OL_MODELS:
+        try:
+            payload = json.dumps({"model": model, "stream": False, "think": False,
+                                  "options": {"temperature": temp, "num_predict": 800, "num_ctx": 8192},
+                                  "messages": [{"role": "system", "content": sys_p},
+                                               {"role": "user", "content": user_t}]})
+            req = _ur.Request(_MT_OL_URL, data=payload.encode("utf-8"),
+                              headers={"Content-Type": "application/json"}, method="POST")
+            with _ur.urlopen(req, timeout=120) as r:
+                data = json.loads(r.read().decode("utf-8"))
+            msg = (data.get("messages") or [{}])[-1]
+            out = (data.get("message", {}) or {}).get("content", "") or msg.get("content", "")
+            out = (out or "").strip()
+            if out:
+                return out
+            last_err = "empty local output"
+        except Exception as e:
+            last_err = str(e)[:120]
+    raise RuntimeError(f"local Ollama failed: {last_err}")
+
+def _mt_or_call(sys_p, user_t, temp=0.3):
+    """CLOUD FIRST (friend's order 2026-09-03: cloud provider for SPEED).
+    OpenRouter gemma free is the primary brain for Articulate/Promote.
+    Local Josie is the FALLBACK ONLY for the daily 50-request ration window
+    (resets 18:00 server time) — so the extension never reports 'bridge down'
+    just because the day's ration died."""
+    import urllib.request as _ur
+    payload = json.dumps({"model": _MT_OR_MODEL, "temperature": temp, "messages": [
+        {"role": "system", "content": sys_p},
+        {"role": "user", "content": user_t}]})
+    req = _ur.Request(_MT_OR_URL, data=payload.encode("utf-8"),
+                      headers={"Content-Type": "application/json",
+                               "Authorization": "Bearer " + _MT_OR_KEY},
+                      method="POST")
+    with _ur.urlopen(req, timeout=120) as r:
+        data = json.loads(r.read().decode("utf-8"))
+    out = (data.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
+    if not out:
+        # Cloud returned nothing usable (ration dead / empty) → local Josie
+        # takes it so the operator still gets his Promote instead of an error.
+        return _mt_ol_call(sys_p, user_t, temp)
+    return out
+
+def _mt_brain(sys_p, user_t, temp):
+    """LOCAL IS PRIMARY (design law 2026-09-03, applied 2026-09-04):
+    Josie via local Ollama first - offline, sovereign, ~1s (live-verified).
+    Cloud OpenRouter ONLY if local Ollama is down. The old cloud-first order
+    died on a placeholder key (401) and the exception escaped past the
+    empty-only fallback - articulate returned 503 "bridge offline"."""
+    try:
+        return _mt_ol_call(sys_p, user_t, temp)
+    except Exception:
+        return _mt_or_call(sys_p, user_t, temp)
+
+def _mt_clean(t):
+    sys_p = ("You clean up dictated text. Fix capitalization, punctuation and "
+             "sentence breaks. Keep every original word including names and "
+             "signatures. Never rewrite, never add, never remove. Return ONLY "
+             "the cleaned text.")
+    return _mt_decaps(_mt_brain(sys_p, t, temp=0.1))
+
+def _mt_brand():
+    _root = Path(__file__).resolve().parent
+    for p in (_root / "branding" / "brand.json",
+              Path(__file__).resolve().parent / "branding" / "brand.json"):
+        try:
+            if p.exists():
+                return json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {}
+
+def _mt_promote(t):
+    b = _mt_brand()
+    pal = b.get("palette", {})
+    name = b.get("name", "MorPHYes Mastery")
+    site = b.get("website", "www.morphyesmastery.com")
+    cta = b.get("footer_cta", "Get your MorPHYes masterpiece today")
+
+    # AI pass: polish the words so they sell. Keep meaning, keep voice, make it shine.
+    sys_p = (
+        "You are a world-class copywriter for MorPHYes Mastery. "
+        "Take the user's rough drafted text and make it polished, warm, and persuasive "
+        "so it sells. Keep their voice, their meaning, and every fact. "
+        "Fix grammar, flow, and impact. Do not add fake claims. "
+        "Return ONLY the polished body text, no subject line, no signature, no commentary."
+    )
+    polished = _mt_brain(sys_p, t, temp=0.5)
+
+    paras = [pp.strip() for pp in polished.split("\n") if pp.strip()]
+    md = "\n\n".join(paras) + "\n\n---\n**[" + cta + "](https://" + site + ")** \u2014 " + name
+    html = ('<div style="font-family:Segoe UI,Arial,sans-serif;max-width:640px;margin:0 auto;'
+            'padding:20px 24px;border:1px solid rgba(0,0,0,0.08);border-radius:10px;'
+            'background:' + pal.get("bg", "#0f2340") + ';color:' + pal.get("ink", "#ece6d8") + '">'
+            + "".join('<p style="margin:0 0 12px 0;line-height:1.6;font-size:15px;">' + pp + "</p>" for pp in paras)
+            + '<hr style="border:none;border-top:1px solid rgba(255,255,255,0.15);margin:18px 0;">'
+            + '<p style="margin:0;font-size:14px;"><a href="https://' + site + '" style="color:'
+            + pal.get("orange", "#d97834") + ';font-weight:700;text-decoration:none;text-transform:uppercase;'
+            'letter-spacing:0.5px;">' + cta + '</a> &nbsp;\u2022&nbsp; <span style="color:'
+            + pal.get("mut", "#8a92a6") + ';">' + name + "</span></p></div>")
+    return md, html
 def extension_server_loop():
     """Tiny HTTP server for Chrome extension Read Aloud. Runs in a thread."""
     try:

@@ -34,7 +34,7 @@ from datetime import datetime
 # ════════════════════════════════════════════════════════
 # PATHS
 # ════════════════════════════════════════════════════════
-NARRATION_QUEUE = Path.home() / "Desktop" / "morPHYtrek_RELEASE" / "morphytrek_data" / "queue"
+NARRATION_QUEUE = Path(__file__).resolve().parent.parent / "morphytrek_data" / "queue"
 OLLAMA_CHAT = "http://localhost:11434/api/chat"
 
 # ════════════════════════════════════════════════════════
@@ -246,7 +246,7 @@ def cross_reference(url, page_content, prompt, model):
     print(f"[spider] Synthesizing {len(findings)} findings...")
     synthesis_prompt = (
         "You are AILA. You just read a web page and found several relevant pieces of information. "
-        "Synthesize them into one clear, concise answer for Trent. He is listening by voice. "
+        "Synthesize them into one clear, concise answer for the operator. They are listening by voice. "
         "Be direct. No preamble. Just the answer, grounded in what was found on the page."
     )
     

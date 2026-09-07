@@ -106,23 +106,9 @@ async function narrate(text) {
   if (cleaned === lastSpoken) return;
   lastSpoken = cleaned;
   
-  const maxChunkSize = 4000;
-  const chunks = [];
-  for (let i = 0; i < cleaned.length; i += maxChunkSize) {
-    chunks.push(cleaned.substring(i, i + maxChunkSize));
-  }
-  
-  if (chunks.length === 1) {
-    chunkCounter++;
-    await sendChunkToQueue(chunks[0], `chrome_extension_${chunkCounter}`);
-    return;
-  }
-  
-  for (let i = 0; i < chunks.length; i++) {
-    chunkCounter++;
-    await sendChunkToQueue(chunks[i], `chrome_extension_${chunkCounter}`);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-  }
+  // SINGLE SEND - no chunking, no limit. The whole selection goes as one narration.
+  chunkCounter++;
+  await sendChunkToQueue(cleaned, `chrome_extension_${chunkCounter}`);
 }
 
 function findNewMessages() {
@@ -212,7 +198,7 @@ function startMic() {
     };
     micRecognition.start();
     micActive = true;
-    console.log("[morPHYtrek] Mic listening — words go to the narration queue if the folder exists");
+    console.log("[morPHYtrek] Mic listening - words go to the narration queue if the folder exists");
     return true;
   } catch (e) {
     console.log("[morPHYtrek] Mic start failed:", e);
@@ -274,4 +260,139 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
   }
 });
 
-console.log("[morPHYtrek] Content script loaded — narration queue via port 8792");
+console.log("[morPHYtrek] Content script loaded - narration queue via port 8792");
+
+// â•â•â• ARTICULATE / PROMOTE â€” offline cleanup via morPHYtrek bridge â•â•â•
+const MT_ARTICULATE_URL = "http://localhost:8792/api/articulate";
+const MT_PROMOTE_URL = "http://localhost:8792/api/promote";
+let _mtUndo = null;
+
+function _mtEditableFromSelection() {
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+    let n = sel.anchorNode;
+    if (n && n.nodeType === 3) n = n.parentNode;
+    if (n && n.closest) {
+      const ed = n.closest('textarea, input[type="text"], input[type="email"], input[type="search"], input[type="url"], [contenteditable="true"], [contenteditable=""]');
+      if (ed) return ed;
+    }
+  }
+  const ae = document.activeElement;
+  if (ae && (ae.tagName === "TEXTAREA" || (ae.tagName === "INPUT" && /^(text|email|search|url)$/i.test(ae.type || "")) || ae.isContentEditable)) return ae;
+  return null;
+}
+
+function _mtToast(msg, revertFn) {
+  const old = document.getElementById("__mt_toast");
+  if (old) old.remove();
+  const d = document.createElement("div");
+  d.id = "__mt_toast";
+  d.style.cssText = "position:fixed;bottom:24px;right:24px;z-index:2147483647;background:#0f2340;color:#ece6d8;padding:10px 16px;border-radius:8px;font:13px Segoe UI,Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.4);display:flex;gap:12px;align-items:center;";
+  d.textContent = msg;
+  if (revertFn) {
+    const b = document.createElement("span");
+    b.textContent = "Ctrl+Z revert";
+    b.style.cssText = "color:#d97834;font-weight:700;cursor:pointer;";
+    b.onclick = () => { revertFn(); d.remove(); };
+    d.appendChild(b);
+  }
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 12000);
+}
+
+async function _mtPost(url, payload) {
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+
+function _mtReplaceSelection(ed, newText) {
+  if (ed.tagName === "TEXTAREA" || ed.tagName === "INPUT") {
+    const s = ed.selectionStart, e = ed.selectionEnd;
+    const before = ed.value.substring(0, s);
+    const after = ed.value.substring(e);
+    _mtUndo = { ed: ed, value: ed.value, s: s, e: e };
+    ed.value = before + newText + after;
+    ed.selectionStart = s;
+    ed.selectionEnd = s + newText.length;
+    ed.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  }
+  if (ed.isContentEditable) {
+    _mtUndo = { ed: ed, html: ed.innerHTML };
+    const ok = document.execCommand("insertText", false, newText);
+    if (!ok) {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        range.deleteContents();
+        range.insertNode(document.createTextNode(newText));
+        return true;
+      }
+      return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+function _mtRevert() {
+  if (!_mtUndo) return;
+  try {
+    if (_mtUndo.value !== undefined) {
+      _mtUndo.ed.value = _mtUndo.value;
+      _mtUndo.ed.dispatchEvent(new Event("input", { bubbles: true }));
+    } else if (_mtUndo.html !== undefined) {
+      _mtUndo.ed.innerHTML = _mtUndo.html;
+    }
+  } catch (e) { console.warn("[morPHYtrek] revert failed", e); }
+  _mtUndo = null;
+}
+
+async function _mtRun(mode) {
+  const ed = _mtEditableFromSelection();
+  if (!ed) {
+    _mtToast(mode === "articulate" ? "Articulating..." : "Promoting...");
+    return;
+  }
+  let text = "";
+  if (ed.tagName === "TEXTAREA" || ed.tagName === "INPUT") {
+    const s = ed.selectionStart, e = ed.selectionEnd;
+    if (e > s) text = ed.value.substring(s, e);
+    else text = ed.value;
+  } else {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed) text = sel.toString();
+    else text = ed.innerText || ed.textContent || "";
+  }
+  if (!text || text.trim().length < 2) {
+    _mtToast("Nothing to " + (mode === "articulate" ? "articulate" : "promote"));
+    return;
+  }
+  _mtToast(mode === "articulate" ? "Articulating..." : "Promoting...");
+  try {
+    const url = mode === "articulate" ? MT_ARTICULATE_URL : MT_PROMOTE_URL;
+    const data = await _mtPost(url, { text: text });
+    if (!data.success) throw new Error(data.error || "server error");
+    let out = mode === "articulate" ? data.text : data.md;
+    if (mode === "promote" && ed.isContentEditable && data.html) {
+      _mtUndo = { ed: ed, html: ed.innerHTML };
+      const ok = document.execCommand("insertHTML", false, data.html);
+      if (ok) { _mtToast("Promoted - Ctrl+Z to revert", _mtRevert); return; }
+    }
+    const done = _mtReplaceSelection(ed, out);
+    if (done) _mtToast(mode === "articulate" ? "Articulated - Ctrl+Z reverts" : "Promoted - Ctrl+Z reverts", _mtRevert);
+    else _mtToast("Could not replace text in this field");
+  } catch (e) {
+    _mtToast("morPHYtrek bridge offline - is the app running?");
+  }
+}
+
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.type === "ARTICULATE_SELECTION") _mtRun("articulate");
+  if (msg.type === "PROMOTE_FIELD") _mtRun("promote");
+});
