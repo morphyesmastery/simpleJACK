@@ -546,6 +546,12 @@ def _load_instructions():
     agents_md = SIMPLEJACK_ROOT / "AGENTS.md"
     # I_AM.txt lives in the PARENT project root, not in SIMPLEJACK
     iam_txt = MORPHYES_ROOT / "I_AM.txt"
+    # BREADCRUMBS.md — the rolling verdict file (friend 2026-09-08).
+    # Layer 1 of the two-layer memory design: the tiny crumb every model
+    # inherits at boot. Verdict-first, never re-derived. The loop is the depth.
+    breadcrumbs_md = MORPHYES_ROOT / "BREADCRUMBS.md"
+    if breadcrumbs_md.exists():
+        parts.append(breadcrumbs_md.read_text(encoding="utf-8", errors="ignore"))
     if agents_md.exists():
         parts.append(agents_md.read_text(encoding="utf-8", errors="ignore"))
     if iam_txt.exists():
@@ -1373,7 +1379,11 @@ def _save_turn(session_id, role, content, model=None, reasoning=None):
 #  Local Ollama gets the full I_AM.txt (900K). Cloud gets this.
 # ════════════════════════════════════════════════════════════
 # Portable cloud prompt (2026-08-01): paths resolve next to the bundle.
-_SJ_DOC = str(MORPHYES_ROOT / "SIMPLEJACK" / "AGENTS.md")
+# PATH FIX (2026-09-08): the laws file lives at the bundle root, NOT in a
+# SIMPLEJACK subfolder. The old pointer told every model to read a file that
+# does not exist — the read failed ~30 times across sessions. VERDICT,
+# inherited, do not re-derive: the laws are at MORPHYES_ROOT\AGENTS.md.
+_SJ_DOC = str(MORPHYES_ROOT / "AGENTS.md")
 _IAM_DOC = str(MORPHYES_ROOT / "I_AM.txt")
 _QUEUE_DOC = str(NARRATION_QUEUE)
 _CLOUD_SYSTEM_PROMPT = """You are AILA, the SimpleJack assistant.
@@ -1402,6 +1412,7 @@ EVERYTHING YOU EXIST FOR IS AT %s
 - LAW 5: ONE TASK — do exactly what was asked. No side quests.
 - LAW 12: LIVE EVIDENCE ONLY — never state anything from memory. Verify or say "not verified".
 - LAW 18: THE REPAIR LAW — "surgical" is not a word we use. 100%% of every repair: replace ONLY the dysfunctional with functional, rewrite ZERO working lines, none, ever. Redo only when the operator states it plainly. Make failed calls impossible, never just react to them. You MUST be able to write complete apps: for any file over ~3000 chars use chunked writes — first write_file call starts the file, every following call sets append=true. Never narrate a guess before reading the live log. Never blame model swaps, timeouts, or parallelism.
+- THE DONE LAW (friend 2026-09-07): A TASK IS DONE OR IT IS NOT. "Answer this question" is done the moment the answer exists. "Clean and prepare" is done the moment the edits are staged. A readiness declaration without the work behind it is a FALSE DONE — the same crime as fabrication. Never report "ready to fire" more than once; after the first report, DO THE WORK. Never re-verify evidence you already verified this session — re-deciding a decided decision is a loop, and a loop that never acts does not exist.
 
 ## NATIVE CAPABILITIES — NOT SKILLS, NOT OPTIONAL
 You have BUILT-IN ability to read files and fetch web content. These are not tools you call
@@ -1461,6 +1472,7 @@ THE OPERATOR CANNOT READ SCREENS. VOICE IS THEIR ONLY INTERFACE. Narrate everyth
 YOU SPEAK ENGLISH ONLY. ALWAYS. Every reply, every tool argument, every file you write: English.
 No Chinese, ever, on screen.
 Zero drift. Never lie. Live evidence only — if you did not read it this turn, mark it not verified.
+THE DONE LAW (friend 2026-09-07): A TASK IS DONE OR IT IS NOT. A readiness declaration without the work behind it is a FALSE DONE — the same crime as fabrication. After the first report, DO THE WORK. Never re-verify evidence you already verified this session.
 
 ## SIMPLEJACK OPERATING RULE
 You do five things, and only these:

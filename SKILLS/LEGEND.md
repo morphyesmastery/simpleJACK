@@ -27,6 +27,10 @@ double-colon line it finds, including examples.)
 
 ## SKILLS
 
-spider :: Crawl any URL via headless fetch, strip noise, cross-reference the prompt against page content using local Ollama, narrate results :: "<bundle>\runtime\python.exe" "<bundle>\SKILLS\morPHYspider.py" --url <url> --prompt "<question>" --done-token <token>
+web :: THE ONE WEB LANE — Obscura headless browser (Rust, local binary, no key, no subscription). Fetch any URL as text/markdown/links/HTML, or scrape many URLs at scale. Replaces all other web-skill references :: "<bundle>\tools\obscura\obscura.exe" fetch <url> --dump text (single page) :: "<bundle>\tools\obscura\obscura.exe" scrape <url> --format json (batch/scale) :: stealth build at <bundle>\tools\obscura\stealth\obscura.exe --stealth for scraping at scale
+webmcp :: Obscura MCP control plane — 36 browser tools (navigate, snapshot, click, fill, evaluate, extract, tabs, cookies, storage_state, screenshot, pdf) over JSON-RPC at http://127.0.0.1:3366/mcp. THE point of web operation for agents and scripts. Server: "<bundle>\tools\obscura\obscura.exe" mcp --http --port 3366 :: MCP call: POST http://127.0.0.1:3366/mcp with mcp-session-id header (initialize first, then tools/call)
+spider :: LEGACY — superseded by web (Obscura). Do not call; kept for reference only :: retired
 browse :: Open a URL in your own already-running Chrome session reusing your cookies, read the page text, return it to chat :: "<bundle>\runtime\python.exe" "<bundle>\SKILLS\cookie_monster.py" <url> --done-token <token>
 agentaila :: Forward a prompt to the AILA desktop window by screen mapping and wait for the reply :: "<bundle>\runtime\python.exe" "<bundle>\SKILLS\agentaila.py" --prompt "<message>" --done-token <token>
+index :: One-shot registry refresh — walk a root bottom-up, create/refresh every FOLDER.md so any model can find any file by reading the folder card :: "<bundle>\runtime\python.exe" "<bundle>\SKILLS\index.py" index <root> --done-token <token>
+watch :: Real-time registry daemon — keep every FOLDER.md current as files change inside a root :: "<bundle>\runtime\python.exe" "<bundle>\SKILLS\index.py" watch <root> --done-token <token>

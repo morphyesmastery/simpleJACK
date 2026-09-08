@@ -1178,9 +1178,7 @@ document.addEventListener('wheel', (e) => {
   if (rail) rail.style.zoom = scale;
   if (tabBar) tabBar.style.zoom = scale;
   if (inputArea) inputArea.style.zoom = scale;
-  // Chat text also scales (bigger text in the now-smaller workspace)
-  const chatLog = document.getElementById('chatLog');
-  if (chatLog) chatLog.style.fontSize = scale + 'rem';
+  // Chat text scaling is owned by the dedicated CHAT TEXT SCALING block (sj_chat_font) - never write fontSize here.
 }, { passive: false });
 
 // Find RSVP elements inside the current bubble host
@@ -1867,6 +1865,7 @@ function stackPause() {
 // STEER (friend 2026-09-06): when a request is live, the textbox STEERS
 // it instead of starting a parallel one. One request, amended mid-flight.
 let liveRequestId = null;  // set while a request is thinking/working
+let liveBubbleEl = null;   // the live AILA bubble — steer text inserts ABOVE it
 
 function sendChat() {
   const input = document.getElementById('promptInput');
@@ -1880,7 +1879,15 @@ function sendChat() {
     const steerBubble = document.createElement('div');
     steerBubble.className = 'bubble user';
     steerBubble.innerHTML = '<div class="who">You <span class="model-tag" style="color:var(--orange)">· STEER</span></div><div class="body">' + esc(prompt) + '</div>';
-    log.appendChild(steerBubble);
+    // STEER-VISIBILITY (friend 2026-09-07): the steer text sits ABOVE the
+    // live reasoning bubble, not beneath it — the operator steers what he
+    // is watching; his words must be the newest thing on screen, not buried
+    // under the growing trace.
+    if (liveBubbleEl && liveBubbleEl.parentNode) {
+      liveBubbleEl.parentNode.insertBefore(steerBubble, liveBubbleEl);
+    } else {
+      log.appendChild(steerBubble);
+    }
     log.scrollTop = log.scrollHeight;
     fetch(API + '/api/steer', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -1916,6 +1923,7 @@ function sendChat() {
   ailaBubble.id = 'aila-thinking-' + taskCounter;
   ailaBubble.innerHTML = '<div class="who">AILA <span class="model-tag">thinking...</span><button class="stop-btn" onclick="stopAILA()">STOP</button></div><div class="body"><div class="typing"><span></span><span></span><span></span></div></div>';
   log.appendChild(ailaBubble);
+  liveBubbleEl = ailaBubble;  // STEER-VISIBILITY: steers insert above this bubble
   log.scrollTop = log.scrollHeight;
 
   // MODULE HOOK ROUTING — if activeHook is set (tab module like Agent AILA),
@@ -2029,31 +2037,51 @@ function sendChat() {
           clearInterval(interval);
           rsvpStop();
           liveRequestId = null;  // STEER: run finished — textbox sends new requests again
+          liveBubbleEl = null;   // STEER-VISIBILITY: run finished — no live bubble to steer above
           ailaBubble.innerHTML = '<div class="who">AILA <span class="model-tag">[' + esc(sd.model || '') + '] · ' + (sd.turns || 0) + ' turn(s)</span></div>' +
             '<div class="body">' + esc(sd.reply || '') + rsvpTraceDropdown(sd.reasoning || '') + '</div>';
           refreshStack();
         } else if (sd.status === 'working') {
-          // LIVE PROGRESS: update the who-header with tool count, preserve RSVP panel
+          // LIVE PROGRESS: update the who-header with turn counter + tool count.
+          // TURN COUNTER (friend 2026-09-07): the operator asked for the turn
+          // count beside the STOP button while the run is live — the backend
+          // pushes `turn` on every loop pass (simplejack.py _update_status).
+          // Always update, not just when tools exist — turn 1 with zero tools
+          // must still show "TURN 1".
           const whoEl2 = ailaBubble.querySelector('.who');
-          if (whoEl2 && sd.tools_used) {
-            const toolNames = sd.tools_used.map(t => t.name).join(' → ');
-            whoEl2.innerHTML = 'AILA <span class="model-tag">[' + esc(sd.model || AILA_MODEL || '') + '] · ' + (sd.turns || 0) + ' turn(s) · ' + esc(toolNames) + '</span><button class="stop-btn" onclick="stopAILA()">STOP</button>';
+          if (whoEl2) {
+            const toolNames = (sd.tools_used && sd.tools_used.length)
+              ? sd.tools_used.map(t => t.name).join(' → ') : '';
+            whoEl2.innerHTML = 'AILA <span class="model-tag">[' + esc(sd.model || AILA_MODEL || '') + '] · TURN ' + (sd.turn || 1) + (toolNames ? ' · ' + esc(toolNames) : '') + '</span><button class="stop-btn" onclick="stopAILA()">STOP</button>';
           }
         } else if (sd.status === 'error') {
           clearInterval(interval);
           rsvpStop(); // stop reasoning trace
           liveRequestId = null;  // STEER: run errored — release the textbox
+          liveBubbleEl = null;   // STEER-VISIBILITY: no live bubble anymore
           ailaBubble.innerHTML = '<div class="who" style="color:var(--red)">AILA</div><div class="body">' + esc(sd.reply || 'Error') + '</div>';
         } else if (sd.status === 'unknown') {
           clearInterval(interval);
           liveRequestId = null;  // STEER: request lost — release the textbox
-          ailaBubble.innerHTML = '<div class="who" style="color:var(--yellow)">AILA</div><div class="body">Request lost — simpleJACK may have restarted. Refresh the page.</div>';
+          liveBubbleEl = null;   // STEER-VISIBILITY: request gone — no live bubble
+          // SELF-HEAL POLL (friend 2026-09-07): the request died with a backend
+          // restart, but the model may have finished it after the restart via
+          // the transcript replay. Reload history — if the reply exists, it
+          // lands on screen; if not, the bubble says so honestly.
+          loadHistory();
+          ailaBubble.innerHTML = '<div class="who" style="color:var(--yellow)">AILA</div><div class="body">Request lost in backend restart — history reloaded. If the reply completed, it is in the log above.</div>';
         }
       } catch(pe) {
         errs++;
         if (errs > 3) {
-          clearInterval(interval);
-          ailaBubble.innerHTML = '<div class="who" style="color:var(--red)">Poll Error</div><div class="body">' + esc(pe.message || String(pe)) + '</div>';
+          // SELF-HEAL POLL (friend 2026-09-07): a backend restart used to kill
+          // this poll forever — the page went deaf while the model kept working.
+          // Now: mark the bubble, keep polling at a slow rate. When the backend
+          // answers again, the poll resumes; if the request itself is gone
+          // (status 'unknown'), history reload brings the reply to the screen.
+          if (errs === 4) {
+            ailaBubble.innerHTML = '<div class="who" style="color:var(--yellow)">AILA <span class="model-tag">reconnecting…</span></div><div class="body">Backend connection lost — self-healing poll active. The run continues; the reply will appear here when the wire is back.</div>';
+          }
         }
       }
     }, 500);
@@ -2222,6 +2250,33 @@ initRailClock();
 setInterval(checkAILAHealth, 10000);
 setInterval(loadModels, 30000);
 setInterval(refreshStack, 3000);
+
+// ── HISTORY SYNC WATCHER (friend 2026-09-07) ──────────────────────
+// The page used to load history ONCE at boot and never again. Any reply
+// that landed after boot (backend restart, dead poll, reload mid-run)
+// never appeared on screen — the operator watched a frozen log while
+// the model kept answering. Now: when no request is live, watch history
+// every 5s; new entries rebuild the log. Never fires mid-run — the live
+// status poll owns the screen while a request is being watched.
+let _lastHistoryTs = '';
+setInterval(() => {
+  if (liveRequestId) return;  // live run owns the screen
+  const tabs = getAllTabs();
+  const activeTabData = tabs.find(t => t.id === activeTab) || BUILTIN_TABS.find(t => t.id === activeTab);
+  const sessionId = activeTabData && activeTabData.sessionId ? activeTabData.sessionId : 'default';
+  fetch(API + '/api/history/' + sessionId)
+    .then(r => r.json())
+    .then(entries => {
+      if (!entries || !entries.length) return;
+      const lastTs = entries[entries.length - 1].ts || '';
+      if (lastTs && lastTs !== _lastHistoryTs) {
+        const first = !_lastHistoryTs;
+        _lastHistoryTs = lastTs;
+        if (!first) loadHistory();  // boot already drew the log; rebuild only on change
+      }
+    })
+    .catch(() => {});
+}, 5000);
 
 // ── ANALOG CLOCK ON THE LOGO (friend 2026-09-06) ───────────────
 // Real hands from system time, day-of-week in words, month/day

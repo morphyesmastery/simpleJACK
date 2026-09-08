@@ -541,6 +541,19 @@ async def chat_completions(request: Request):
     payload["model"] = upstream
     apply_master_prefs(payload, prefs)
 
+    # ── CARD OUTPUT CLAMP (2026-09-07) — some free upstreams cap
+    # max_tokens (e.g. groq/compound-mini: 8192) and 400 the whole
+    # request when SimpleJack's 16384 default exceeds it. If the card
+    # declares max_output_tokens, clamp the payload to it.
+    _mot = card.get("max_output_tokens")
+    if _mot:
+        try:
+            _mot = int(_mot)
+            if payload.get("max_tokens") and int(payload["max_tokens"]) > _mot:
+                payload["max_tokens"] = _mot
+        except (TypeError, ValueError):
+            pass
+
     headers = {"Content-Type": "application/json"}
     # 2026-08-29 (Trent): OpenRouter app attribution. Some :free models
     # (thinkingmachines/inkling*) are gated to "agentic harnesses" and 403

@@ -1071,7 +1071,7 @@
     {
       "id": "groqcompound",
       "provider": "groq",
-      "upstream": "compound-beta",
+      "upstream": "groq/compound-mini",
       "label": "Compound Mini (Groq FREE)",
       "cost": "FREE",
       "context": 200000,
@@ -1082,7 +1082,8 @@
       "free_rule": "Groq free: 30 RPM, 14.4k req/day org-wide.",
       "archived": false,
       "reset_spec": null,
-      "reset_next": null
+      "reset_next": null,
+      "max_output_tokens": 8192
     },
     {
       "id": "mstmistralsmall",
@@ -1232,7 +1233,7 @@
   "user_prefs": {
     "temperature": 0.1,
     "simplicity": 12,
-    "rate_rpm": 3,
+    "rate_rpm": 4,
     "impose_temp": true,
     "impose_simple": false,
     "impose_rate": true,

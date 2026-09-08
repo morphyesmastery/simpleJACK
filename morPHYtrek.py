@@ -1245,7 +1245,7 @@ class _ExtHandler(BaseHTTPRequestHandler):
 _MT_OL_URL = "http://127.0.0.1:11434/api/chat"
 _MT_OL_MODELS = ("josie-4b-tools:latest", "josie-2b-tools:latest")
 _MT_OR_URL = "https://openrouter.ai/api/v1/chat/completions"
-_MT_OR_KEY = "sk-or-...1339"
+_MT_OR_KEY = os.environ.get("OPENROUTER_API_KEY", "")  # BYO: no key ships; buyer sets their own
 _MT_OR_MODEL = "google/gemma-4-31b-it:free"
 _MT_ACRO = {"i","ai","app","gpu","cpu","ok","pm","am","html","md","os","tts","api","ucp","ceo","usa","llc","ps","po","kc","bc","us","morphyes","morphytrek","morphyesmastery","josie"}
 
@@ -1294,6 +1294,9 @@ def _mt_or_call(sys_p, user_t, temp=0.3):
     Local Josie is the FALLBACK ONLY for the daily 50-request ration window
     (resets 18:00 server time) — so the extension never reports 'bridge down'
     just because the day's ration died."""
+    if not _MT_OR_KEY:
+        # BYO product ships keyless - local Josie takes it, auth never fails.
+        return _mt_ol_call(sys_p, user_t, temp)
     import urllib.request as _ur
     payload = json.dumps({"model": _MT_OR_MODEL, "temperature": temp, "messages": [
         {"role": "system", "content": sys_p},
