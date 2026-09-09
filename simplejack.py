@@ -133,6 +133,59 @@ def ensure_dispatch_running():
         log(f"DISPATCH launch failed: {e}")
         return False
 
+
+# ════════════════════════════════════════════════════════════
+#  OBSCURA MCP GUARDIAN — the browser hands boot with the system.
+#  Same law as dispatch: if the MCP server on 3366 is down when
+#  simplejack boots, launch it DETACHED (LAUNCH LAW — never a
+#  child of this process). It survives on its own. Never killed.
+# ════════════════════════════════════════════════════════════
+OBSCURA_EXE = SIMPLEJACK_ROOT / "tools" / "obscura" / "obscura.exe"
+MCP_PORT    = 3366
+
+def is_mcp_running():
+    """True if something answers on the MCP port (127.0.0.1:3366)."""
+    try:
+        r = requests.post(
+            f"http://127.0.0.1:{MCP_PORT}/mcp",
+            json={"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                  "params": {"protocolVersion": "2024-11-05",
+                             "capabilities": {},
+                             "clientInfo": {"name": "simplejack-guardian",
+                                            "version": "1.0"}}},
+            headers={"Content-Type": "application/json",
+                     "mcp-session-id": "guardian"},
+            timeout=3,
+        )
+        return r.status_code == 200
+    except Exception:
+        return False
+
+def ensure_mcp_running():
+    """If the Obscura MCP server is down, launch it DETACHED so it survives
+    on its own (LAUNCH LAW). No console window — it is a silent local engine,
+    same as the hidden SimpleJack server lane."""
+    if is_mcp_running():
+        return True
+    if not OBSCURA_EXE.exists():
+        log(f"MCP GUARDIAN: obscura.exe not found at {OBSCURA_EXE}")
+        return False
+    try:
+        DETACHED_PROCESS = 0x00000008
+        CREATE_NEW_PROCESS_GROUP = 0x00000200
+        subprocess.Popen(
+            [str(OBSCURA_EXE), "mcp", "--http", "--port", str(MCP_PORT),
+             "--allow-private-network"],
+            cwd=str(OBSCURA_EXE.parent),
+            creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+            close_fds=True,
+        )
+        log("MCP GUARDIAN: Obscura was down — launched detached on 3366.")
+        return True
+    except Exception as e:
+        log(f"MCP GUARDIAN: launch failed: {e}")
+        return False
+
 PORT = 8797
 
 # ════════════════════════════════════════════════════════════
@@ -1398,7 +1451,7 @@ LAWS ARE AT %s
 EVERYTHING YOU EXIST FOR IS AT %s
 
 ## WHO THE OPERATOR IS
-- Former refrigeration mechanic, SAIT instructor, Calgary Alberta
+- Former refrigeration mechanic, tradeschool instructor, Calgary Alberta
 - Injured pre-pandemic. CANNOT READ SCREENS. Voice is his ONLY interface.
 - A reply he cannot hear DID NOT HAPPEN. Narrate EVERYTHING.
 - Built X Premium → Claude Pro → Z.AI. 3000+ hours, all by voice.
@@ -2986,6 +3039,15 @@ def main():
         log("DISPATCH down — launching now (visible window).")
         ensure_dispatch_running()
         # Give it a moment to write its PID file
+        time.sleep(2)
+
+    # OBSCURA MCP GUARDIAN — the browser hands boot with the system.
+    # Detached (LAUNCH LAW). Survives on its own. Never killed.
+    if is_mcp_running():
+        log("MCP already running on 3366.")
+    else:
+        log("MCP down — launching detached now.")
+        ensure_mcp_running()
         time.sleep(2)
 
     server = ThreadingHTTPServer(("127.0.0.1", PORT), SimpleJackHandler)

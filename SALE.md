@@ -1,9 +1,9 @@
-# SimpleJack — Buy the Whole Machine
+# SimpleJack â€” Buy the Whole Machine
 
 **One folder. One launch file. A complete AI workstation that leaves no residue.**
 
 SimpleJack is a portable, offline-first AI workstation for Windows. It runs from a single
-directory — brain, model hub, voice, tools, skills — and needs nothing installed.
+directory â€” brain, model hub, voice, tools, skills â€” and needs nothing installed.
 Copy it to a drive, move it machine to machine, and it still works. Delete the folder,
 and the machine is exactly as it was.
 
@@ -11,36 +11,36 @@ and the machine is exactly as it was.
 
 | Layer | What it does |
 |---|---|
-| **Brain (port 8797)** | Local agent runtime — conversation, tools, rolling memory, self-repair |
+| **Brain (port 8797)** | Local agent runtime â€” conversation, tools, rolling memory, self-repair |
 | **Hub (port 8123)** | Model card router: local Ollama models + free-tier cloud cards, switchable live |
-| **Voice (MorPHYtrek)** | Real-time narration of everything the assistant does — local Piper TTS, Alba voice |
-| **RSVP reader** | Watch the model *think* — reasoning streams word-by-word at a fixed point, 600+ wpm, zero eye movement |
+| **Voice (MorPHYtrek)** | Real-time narration of everything the assistant does â€” local Piper TTS, Alba voice |
+| **RSVP reader** | Watch the model *think* â€” reasoning streams word-by-word at a fixed point, 600+ wpm, zero eye movement |
 | **Skills** | Browser automation (your Chrome, CDP), file ops, command runner, X scanner, and more |
-| **Runtime** | Embedded Python — no Python install, no venv setup, nothing to break |
+| **Runtime** | Embedded Python â€” no Python install, no venv setup, nothing to break |
 
 ## Who it's for
 
 - **Builders who own their compute** and refuse subscription rent on their own hardware
-- **Accessibility-first users** — voice narration and RSVP reading built in, not bolted on
-- **Field / offline environments** — trade schools, shops, remote sites: no cloud required for the core
+- **Accessibility-first users** â€” voice narration and RSVP reading built in, not bolted on
+- **Field / offline environments** â€” trade schools, shops, remote sites: no cloud required for the core
 - **Anyone who's watched a "free" tool get paywalled** and wants the copy they own to keep working
 
 ## Pricing
 
 | | Price | What you get |
 |---|---|---|
-| **SimpleJack — Personal** | **$20 USD** | Full portable folder, personal use, forever updates on this major |
-| **SimpleJack — Trades/Training license** | **Contact** | For one training site (school, shop, program) — up to 10 seats |
-| **SimpleJack — Site license** | **Contact** | Fleet deployments, custom skills, integration |
+| **SimpleJack â€” Personal** | **$20 USD** | Full portable folder, personal use, forever updates on this major |
+| **SimpleJack â€” Trades/Training license** | **Contact** | For one training site (school, shop, program) â€” up to 10 seats |
+| **SimpleJack â€” Site license** | **Contact** | Fleet deployments, custom skills, integration |
 
 **No subscription. No activation server. No phone-home.** If we disappear, your copy
-keeps working — that's the point.
+keeps working â€” that's the point.
 
 ## How to buy
 
 **Lightning Bitcoin** (anywhere in the world, seconds, near-zero fees):
 
-> Send **$20 USD equivalent** (about 230,000 sats) to this reusable Lightning offer —
+> Send **$20 USD equivalent** (about 230,000 sats) to this reusable Lightning offer â€”
 > paste the string below into any Lightning wallet (Phoenix, Strike, Wallet of Satoshi, Zeus, Breez):
 
 ```
@@ -48,7 +48,7 @@ lno1pgpryvqsacpcvnhsyh77376c0kvfrpkwdf9ps6y4aez2jf4lcdcw9smxt9arlrcz938smnf0c8xj
 ```
 
 > Then email **morphyesmastery@gmail.com** with **SimpleJack** in the subject (include
-> your payment note). The download link + license comes back **automatically — in minutes, day or night**.
+> your payment note). The download link + license comes back **automatically â€” in minutes, day or night**.
 
 **e-Transfer** (Canada):
 
@@ -60,10 +60,11 @@ The download link and license folder are delivered **automatically by return ema
 ## Try the proof first
 
 Watch the RSVP reader think in real time: [morphyesmastery.com](https://www.morphyesmastery.com)
-— then imagine that level of access wired through an entire workstation. That's SimpleJack.
+â€” then imagine that level of access wired through an entire workstation. That's SimpleJack.
 
 ---
 
-*SimpleJack is built by Trent Brown — ex-refrigeration mechanic, SAIT instructor, Calgary.
-Built by a controls specialist who couldn't read the screens, so he built interfaces that
-don't require hurting to use.*
+*SimpleJack is built by Trent Brown â€” ex-refrigeration mechanic, tradeschool instructor, Calgary.
+Built by a controls specialist who lost screens to a physical disability, so he built interfaces that
+don't require reading to use.*
+

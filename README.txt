@@ -131,7 +131,7 @@ No subscription. No activation server. No phone-home.
 If we disappear, your copy keeps working.
 That's the point.
 
-Built by Trent Brown — ex-refrigeration mechanic, SAIT
+Built by Trent Brown — ex-refrigeration mechanic, tradeschool
 instructor, Calgary. Built by a controls specialist who
 couldn't read the screens, so he built interfaces that
 don't require hurting to use.

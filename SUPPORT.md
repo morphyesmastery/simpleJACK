@@ -14,7 +14,7 @@ and it only survives if the people it serves keep it alive.
   from a single folder. Copy it to a USB drive, plug it into any Windows machine, launch
   one file. Self-healing, no install, no residue.
 - **MorPHYtrek** — the voice layer. Real-time narration of the assistant's work through
-  local Piper TTS, built for people whose eyes can't do walls of text. Accessibility
+  local Piper TTS, built for people who can't do walls of text. Accessibility
   isn't a feature here; it's the foundation.
 
 ## How to support
