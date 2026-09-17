@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cooling Technologies Ltd — Apply Direct</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a1420;font-family:'Segoe UI',system-ui,Arial,sans-serif;color:#eaf6ff;min-height:100vh;padding:34px 20px 60px}
+.wrap{max-width:860px;margin:0 auto}
+.mast{border:1px solid #24405a;background:linear-gradient(135deg,#0e2a3f,#123a57);border-radius:18px;padding:28px 32px;margin-bottom:26px;box-shadow:0 0 50px rgba(0,0,0,.45)}
+.mast .brand{font-size:26px;letter-spacing:2.5px;color:#fff}
+.mast .brand b{color:#4fc3f7}
+.mast .tag{color:#a9d3ea;font-size:14px;margin-top:6px}
+.mast .note{color:#6f93ad;font-size:12.5px;margin-top:10px;letter-spacing:.4px}
+h2{font-size:13px;letter-spacing:3px;color:#4fc3f7;margin:26px 0 12px;text-transform:uppercase}
+.drop{border:2px dashed #3a6a8f;background:#0f1e2e;border-radius:16px;padding:34px;text-align:center;cursor:pointer;transition:all .18s}
+.drop:hover,.drop.hot{border-color:#4fc3f7;background:#123246;box-shadow:0 0 30px rgba(79,195,247,.35)}
+.drop .big{font-size:17px;font-weight:700;color:#eaf6ff}
+.drop .sub{font-size:12.5px;color:#8fb3cc;margin-top:8px}
+.drop .resmeta{font-size:13px;color:#7ee2a8;margin-top:12px;font-weight:700}
+.drop .resmeta .prev{display:block;margin-top:8px;color:#8fb3cc;font-weight:400;font-style:italic;font-size:12px}
+.drop.lit{border-style:solid;border-color:#7ee2a8}
+
+.pills{display:flex;flex-wrap:wrap;gap:14px}
+.pill{border:2px solid #24405a;background:#0f1e2e;border-radius:999px;padding:14px 22px;cursor:pointer;transition:all .18s;user-select:none}
+.pill .t{font-weight:700;color:#eaf6ff;font-size:16px}
+.pill .m{font-size:12.5px;color:#8fb3cc;margin-top:2px}
+.pill:hover{border-color:#3a6a8f;transform:translateY(-2px)}
+.pill.lit{border-color:#4fc3f7;background:#123246;box-shadow:0 0 20px rgba(79,195,247,.45)}
+.pill.lit .m{color:#bfe3f7}
+.name{display:flex;gap:12px;margin-top:16px}
+input[type=text]{flex:1;background:#0f1e2e;border:2px solid #24405a;border-radius:10px;color:#eaf6ff;padding:12px 14px;font-size:15px}
+input[type=text]:focus{outline:none;border-color:#4fc3f7}
+.go{margin-top:18px;width:100%;padding:16px;border:none;border-radius:12px;font-size:18px;font-weight:800;letter-spacing:1px;cursor:pointer;transition:all .2s;background:#1a2f42;color:#5d7d95}
+.go.on{background:linear-gradient(90deg,#1b7fae,#4fc3f7);color:#04121d;box-shadow:0 0 26px rgba(79,195,247,.5)}
+.go.on:hover{transform:translateY(-2px)}
+.qcard{background:#0f1e2e;border:1px solid #24405a;border-radius:16px;padding:26px;box-shadow:0 0 40px rgba(0,0,0,.4)}
+.qnum{font-size:12px;letter-spacing:3px;color:#4fc3f7;font-weight:700}
+.qtext{font-size:21px;color:#eaf6ff;margin:14px 0 6px;font-weight:600;line-height:1.4}
+.qwho{font-size:12.5px;color:#6f93ad;margin-bottom:14px}
+textarea{width:100%;background:#0a1420;border:2px solid #24405a;border-radius:10px;color:#eaf6ff;padding:14px;font-size:15px;resize:vertical;font-family:inherit}
+textarea:focus{outline:none;border-color:#4fc3f7}
+.voiceline{margin-top:10px;font-size:13px;letter-spacing:2px;font-weight:800;color:#ffb300;min-height:18px}
+.voiceline.typing{color:#4fc3f7}
+.qfoot{display:flex;justify-content:space-between;align-items:center;margin-top:14px}
+.timer{font-variant-numeric:tabular-nums;color:#8fb3cc;font-size:14px}
+.next{background:linear-gradient(90deg,#1b7fae,#4fc3f7);color:#04121d;border:none;border-radius:10px;padding:12px 24px;font-weight:800;font-size:15px;cursor:pointer}
+.next:hover{transform:translateY(-2px)}
+.bar{height:5px;background:#0a1420;border-radius:99px;margin-top:16px;overflow:hidden}
+.bar-fill{height:100%;width:0;background:linear-gradient(90deg,#1b7fae,#4fc3f7);transition:width .3s}
+.thinking{margin:26px auto;text-align:center;padding:40px 20px;border:1px solid #24405a;border-radius:16px;background:#0f1e2e}
+.thinking .orb{width:54px;height:54px;margin:0 auto 18px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#4fc3f7,#0a3a55);box-shadow:0 0 40px rgba(79,195,247,.7);animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.18);opacity:.7}}
+.thinking .t1{font-size:18px;font-weight:800;letter-spacing:2px;color:#eaf6ff}
+.thinking .t2{font-size:13px;color:#8fb3cc;margin-top:8px}
+</style>
+</head>
+<body>
+<!-- ============ LANDING ============ -->
+<div class="wrap" id="landing">
+  <div class="mast">
+    <div class="brand" id="brand-co">COOLING <b>TECHNOLOGIES</b> LTD</div>
+    <div class="tag" id="brand-tag">Refrigeration &amp; HVAC — Alberta's Trade Professionals Since 1998</div>
+    <div class="note">This is OUR page. No job board in the middle — you apply straight to us.</div>
+  </div>
+  <h2>Step 1 — Drop your resume</h2>
+  <div class="drop" id="drop">
+    <div class="big">📄 Drag your resume here — or click to browse</div>
+    <div class="sub">PDF / DOCX / TXT · it uploads for real and the manager's AI actually reads it</div>
+    <div class="resmeta" id="resmeta"></div>
+  </div>
+  <h2>Step 2 — Pick every role you'd consider</h2>
+  <div class="pills" id="pills">
+    <div class="pill" data-role="Journeyman Refrigeration Tech"><div class="t">Journeyman Refrigeration Tech</div><div class="m">Full time · $42–55/hr · Calgary</div></div>
+    <div class="pill" data-role="Apprentice — 1st or 2nd year"><div class="t">Apprentice — 1st or 2nd year</div><div class="m">Full time · $24–30/hr · Calgary</div></div>
+    <div class="pill" data-role="HVAC Service Tech"><div class="t">HVAC Service Tech</div><div class="m">Full time · $38–48/hr · Red Deer</div></div>
+    <div class="pill" data-role="Warehouse &amp; Parts Coordinator"><div class="t">Warehouse &amp; Parts Coordinator</div><div class="m">Full time · $22–27/hr · Calgary</div></div>
+    <div class="pill" data-role="Summer Student — Shop Help"><div class="t">Summer Student — Shop Help</div><div class="m">Seasonal · $18/hr · Calgary</div></div>
+  </div>
+  <h2>Step 3 — Who are you?</h2>
+  <div class="name"><input type="text" id="fullname" placeholder="Full name"></div>
+  <button class="go" id="go">GO — START MY PRE-INTERVIEW</button>
+  <div style="text-align:center;color:#5d7d95;font-size:12.5px;margin-top:10px">Can't or won't finish it? No problem — the hiring manager only hears from the people who did.</div>
+</div>
+<!-- ============ INTERVIEW ============ -->
+<div class="wrap" id="stage" style="display:none">
+  <div class="mast">
+    <div class="brand" style="font-size:22px">PRE-INTERVIEW <b>RUNS NOW</b></div>
+    <div class="tag" id="stage-sub"></div>
+  </div>
+  <div class="qcard" id="qcard">
+    <div class="qnum" id="qnum">QUESTION 1</div>
+    <div class="qtext" id="qtext">…</div>
+    <div class="qwho" id="qwho"></div>
+    <textarea id="answer" rows="7" placeholder="Answer in your own words. There is no right vocabulary — say what you'd actually do."></textarea>
+    <div class="voiceline" id="voiceline"></div>
+    <div class="qfoot">
+      <span id="timer" class="timer">0:00</span>
+      <button class="next" id="next">SUBMIT ANSWER →</button>
+    </div>
+    <div class="bar"><div class="bar-fill" id="bar"></div></div>
+  </div>
+</div>
+<!-- ============ THINKING ============ -->
+<div class="wrap" id="thinkview" style="display:none">
+  <div class="thinking">
+    <div class="orb"></div>
+    <div class="t1">THE MANAGER'S AI IS READING</div>
+    <div class="t2">Your resume, every answer, and what this job actually needs — meaning, not keywords. This takes a moment because it is really thinking.</div>
+  </div>
+</div>
+<!-- ============ REPORT ============ -->
+<div class="wrap" id="mailview" style="display:none">
+  <div class="mast">
+    <div class="brand" style="font-size:22px">YOUR REPORT <b>IS READY</b></div>
+    <div class="tag">Scored by the manager's AI while you watched. This is what its inbox received.</div>
+  </div>
+  <div class="emailframe" id="emailframe"></div>
+</div>
+<style>
+.emailframe{background:#ffffff;border-radius:14px;color:#1a2733;box-shadow:0 0 60px rgba(0,0,0,.5);overflow:hidden}
+.em-head{background:linear-gradient(135deg,#0e2a3f,#15496b);padding:30px 34px;color:#fff}
+.em-head .co{font-size:22px;font-weight:800;letter-spacing:1.5px}
+.em-head .sub{color:#a9d3ea;font-size:13.5px;margin-top:4px}
+.em-body{padding:30px 34px}
+.em-h{font-size:19px;font-weight:800;color:#0e2a3f;margin:0 0 12px}
+.em-p{font-size:14.5px;color:#33475b;margin:8px 0}
+.em-tag{display:inline-block;background:#e3f2fd;color:#0e5a86;border-radius:999px;padding:4px 12px;font-size:12px;font-weight:700;margin:3px 6px 3px 0}
+.verdict{border-radius:12px;padding:18px 22px;margin:16px 0;color:#fff}
+.verdict.advance{background:linear-gradient(135deg,#1b5e20,#2e7d32);box-shadow:0 4px 18px rgba(46,125,50,.35)}
+.verdict.hold{background:linear-gradient(135deg,#8d5600,#b3801a);box-shadow:0 4px 18px rgba(179,128,26,.3)}
+.verdict .v1{font-size:16px;font-weight:800;letter-spacing:2px}
+.verdict .v2{font-size:13.5px;margin-top:6px;opacity:.95;line-height:1.5}
+.scorerow{display:flex;gap:12px;flex-wrap:wrap;margin:14px 0}
+.scorechip{border-radius:12px;padding:12px 18px;min-width:130px;background:#f1f6f9;border:1px solid #d7e3ea;text-align:center}
+.scorechip .n{font-size:26px;font-weight:800;color:#0e5a86}
+.scorechip .l{font-size:11px;letter-spacing:2px;color:#607d8b;font-weight:700;margin-top:2px}
+table.qa{width:100%;border-collapse:collapse;margin:14px 0}
+table.qa th{text-align:left;font-size:11px;letter-spacing:2px;color:#607d8b;padding:8px 10px;border-bottom:2px solid #cfd8dc}
+table.qa td{font-size:13.5px;color:#263644;padding:12px 10px;border-bottom:1px solid #eceff1;vertical-align:top}
+.t-pill{background:#e8f5e9;color:#1b5e20;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;white-space:nowrap}
+.jnote{display:block;margin-top:8px;background:#eef7fb;border-left:3px solid #4fc3f7;border-radius:6px;padding:10px 12px;font-size:12.5px;color:#33586e;font-style:italic}
+.em-note{background:#fff8e1;border-left:4px solid #ffb300;border-radius:8px;padding:16px 18px;margin:18px 0;font-size:14px;color:#5d4a12}
+.em-foot{background:#f4f7f9;padding:18px 34px;font-size:12px;color:#78909c}
+</style>
+<script>
+// ---- OWNER CONFIG — edit these three lines, nothing else ----
+var COMPANY_NAME = "Cooling Technologies Ltd";
+var COMPANY_TAG  = "Refrigeration & HVAC — Alberta's Trade Professionals Since 1998";
+var POST_TO_BOARD = true;   // applicants land in the HireHarbor owner board
+var BOARD_URL = "http://127.0.0.1:8712/api/public_apply";
+// ---- employer ads: unique questions per role, duplicates merged at GO ----
+var ADS = {
+  "Journeyman Refrigeration Tech": {questions:[
+    {q:"A supermarket calls: their compressor is tripping on overload every morning at opening. Walk me through your first hour.", who:"From: Journeyman ad"},
+    {q:"A customer says the bill is 'insane' and refuses to pay. What do you actually do, step by step?", who:"From: Journeyman ad"},
+    {q:"Tell me about a time you caught someone else's mistake before it became a warranty claim.", who:"From: Journeyman ad"}]},
+  "Apprentice — 1st or 2nd year": {questions:[
+    {q:"You don't know how to do a task the tech just asked you to do. What do you say to him?", who:"From: Apprentice ad"},
+    {q:"A customer says the bill is 'insane' and refuses to pay. What do you actually do, step by step?", who:"shared with Journeyman ad — NOT repeated"},
+    {q:"Why this trade and not something else?", who:"From: Apprentice ad"}]},
+  "HVAC Service Tech": {questions:[
+    {q:"Two no-heat calls, one van, minus thirty outside. How do you sequence the morning?", who:"From: HVAC ad"},
+    {q:"Tell me about a time you caught someone else's mistake before it became a warranty claim.", who:"shared with Journeyman ad — NOT repeated"},
+    {q:"A rooftop unit is short-cycling. Talk me through what you check first and why.", who:"From: HVAC ad"}]},
+  "Warehouse & Parts Coordinator": {questions:[
+    {q:"A tech calls needing a part you're out of, truck leaves in ten minutes. Go.", who:"From: Warehouse ad"},
+    {q:"You don't know how to do a task the tech just asked you to do. What do you say to him?", who:"shared with Apprentice ad — NOT repeated"}]},
+  "Summer Student — Shop Help": {questions:[
+    {q:"Why this trade and not something else?", who:"shared with Apprentice ad — NOT repeated"},
+    {q:"The shop is slammed and you've run out of assigned work. What do you do?", who:"From: Summer ad"}]}
+};
+// ---- autopilot answers (the recording): per-question spoken + typed reply ----
+var AUTO = {
+ "supermarket calls: their compressor": "First thing I do is check amp draw against the RLA, then head pressure and condenser condition. Morning pull-down is the biggest load of the day, so I rule that out before throwing parts at it. And I call the store manager early so they know the food-loss risk is being managed, not ignored.",
+ "bill is 'insane'": "I don't argue and I don't get defensive. I sit down with them and walk the invoice line by line — parts, hours, what each thing actually was. Most of the time once people see the work itemized, the heat comes out of it. If it still doesn't, I get the owner involved politely and we protect the relationship.",
+ "caught someone else's mistake": "On a rack job last winter I noticed the previous contractor had wired the defrost heaters to always-on instead of timed. Caught it during my own checks — would have cooked the compressors inside two months and that's a fifty-thousand-dollar claim. I flagged it, we fixed it same day, and I added it to my own startup checklist after.",
+ "don't know how to do a task": "I say 'I don't know, show me.' Right away, before I touch anything. Guessing on a refrigeration system hurts people and costs money. Nobody minds teaching the guy who asks.",
+ "Why this trade": "I like that the work is real — you walk in, something's broken, you diagnose it, you fix it, and people's food or heat depends on it. There's no faking it and no two days the same. That's honest work and it pays honestly back.",
+ "Two no-heat calls": "Triage first: kids or elderly in the house wins, then pipe-freeze risk, then everything else. I batch by geography, load the van once for both, and I call the second customer with an honest ETA so nobody's sitting in the dark wondering.",
+ "rooftop unit is short-cycling": "Controls before charge, always. Thermostat and time-delay first, then filters and airflow — a plugged filter alone will short-cycle a unit — and only then do I look at charge and head pressure. Order matters because each check can explain the next one away.",
+ "needing a part you're out of": "Two moves in ninety seconds: check the other trucks and the branch stock, and call the supplier for will-call pickup. If neither lands, I give the tech the honest interim workaround and log the backorder so it never bites us twice.",
+ "run out of assigned work": "I find work. Ask the lead what's next, and if everyone's slammed, I stock, sweep, or shadow a tech — standing around waiting to be told twice is not a job."
+};
+</script>
+<script>
+var picked = [], resumeName = "", resumeText = "", qIdx = 0, questions = [], t0 = 0, timerHandle = null, log = [];
+var $ = function(id){ return document.getElementById(id); };
+document.querySelectorAll('.pill').forEach(function(p){
+  p.onclick = function(){ p.classList.toggle('lit');
+    var r = p.getAttribute('data-role');
+    picked = p.classList.contains('lit') ? picked.concat([r]) : picked.filter(function(x){return x!==r;});
+    $('go').classList.toggle('on', picked.length > 0); };
+});
+// ---- REAL drag target: drag lights it, drop reads the actual resume text ----
+var drop = $('drop');
+['dragenter','dragover'].forEach(function(ev){
+  drop.addEventListener(ev, function(e){ e.preventDefault(); e.stopPropagation(); drop.classList.add('hot'); }); });
+['dragleave','drop'].forEach(function(ev){
+  drop.addEventListener(ev, function(e){ e.preventDefault(); e.stopPropagation(); drop.classList.remove('hot'); }); });
+drop.addEventListener('drop', function(e){ var f = e.dataTransfer.files[0]; if(f) readFile(f); });
+drop.onclick = function(){ var i = document.createElement('input'); i.type='file';
+  i.onchange = function(){ if(i.files[0]) readFile(i.files[0]); };
+  i.click(); };
+function readFile(f){
+  resumeName = f.name;
+  var r = new FileReader();
+  r.onload = function(){
+    resumeText = String(r.result || "");
+    var clean = resumeText.replace(/\s+/g,' ').trim();
+    $('resmeta').innerHTML = '✓ Attached: ' + esc(resumeName) + ' — ' + resumeText.length + ' chars, read by the AI'
+      + '<span class="prev">"' + esc(clean.substring(0,110)) + '…"</span>';
+    drop.classList.add('lit');
+  };
+  r.readAsText(f);
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+// ---- GO: merge unique questions across ALL selected ads, no duplication ----
+$('go').onclick = function(){
+  if(!picked.length) return;
+  var seen = {}, merged = [];
+  picked.forEach(function(role){
+    ADS[role].questions.forEach(function(item){
+      if(!seen[item.q]){ seen[item.q] = true; merged.push({q:item.q, who:item.who}); } }); });
+  questions = merged; qIdx = 0; log = [];
+  NAME = ($('fullname').value||'').trim() || 'Applicant';
+  $('landing').style.display='none';
+  $('stage').style.display='block';
+  $('stage-sub').textContent = picked.length + " role" + (picked.length>1?"s":"") + " selected: " + picked.join(" · ");
+  showQ();
+};
+// ---- voice + autopilot: SPEAK the question, then TYPE the reply like a person ----
+function speak(text, onend){
+  var done = false;
+  var fin = function(){ if(!done){ done = true; if(onend) onend(); } };
+  try{
+    try{ speechSynthesis.cancel(); }catch(e2){}
+    var u = new SpeechSynthesisUtterance(text); u.rate = 1.0;
+    u.onend = fin; u.onerror = fin;
+    speechSynthesis.speak(u);
+    // fallback: never let a dead synth stall the interview
+    setTimeout(fin, Math.max(9000, text.length * 95) + 3500);
+  }catch(err){ fin(); }
+}
+function typeInto(el, text, done){
+  el.classList.add('typing'); var i = 0;
+  var h = setInterval(function(){ el.value = text.substring(0, i); i += 2;
+    if(i > text.length){ el.value = text; clearInterval(h); el.classList.remove('typing'); done(); } }, 22);
+}
+function autoReply(q){
+  var key = Object.keys(AUTO).find(function(k){ return q.toLowerCase().indexOf(k.toLowerCase()) !== -1; });
+  return key ? AUTO[key] : "I would ask my lead before touching anything — guessing is how people get hurt and warranties die. Then the checks, cheapest cause first.";
+}
+function showQ(){
+  var item = questions[qIdx];
+  $('qnum').textContent = "QUESTION " + (qIdx+1) + " OF " + questions.length;
+  $('qtext').textContent = item.q;
+  $('qwho').textContent = item.who;
+  $('answer').value = "";
+  $('bar').style.width = (qIdx/questions.length*100) + "%";
+  $('voiceline').textContent = "🔊 SPEAKING THE QUESTION…";
+  t0 = Date.now();
+  if(timerHandle) clearInterval(timerHandle);
+  timerHandle = setInterval(function(){
+    var s = Math.floor((Date.now()-t0)/1000);
+    $('timer').textContent = Math.floor(s/60) + ":" + ("0"+s%60).slice(-2); }, 250);
+  $('qcard').animate([{transform:'translateY(14px)',opacity:0},{transform:'translateY(0)',opacity:1}],{duration:300,easing:'ease-out'});
+  speak(item.q, function(){
+    $('voiceline').textContent = "● TYPING THE REPLY…";
+    typeInto($('answer'), autoReply(item.q), function(){
+      $('voiceline').textContent = "READY — SUBMITTING…";
+      setTimeout(function(){ $('next').click(); }, 700); }); });
+}
+$('next').onclick = function(){
+  var txt = $('answer').value.trim();
+  if(!txt) return;
+  clearInterval(timerHandle);
+  log.push({q:questions[qIdx].q, who:questions[qIdx].who, a:txt, secs:Math.round((Date.now()-t0)/1000)});
+  qIdx++;
+  if(qIdx < questions.length){ showQ(); } else { finish(); }
+};
+</script>
+<script>
+var NAME = "Applicant";
+// apply owner config to the page header
+document.getElementById('brand-co').innerHTML = esc(COMPANY_NAME).replace(/ ([A-Za-z]+)$/, ' <b>$1</b>');
+document.getElementById('brand-tag').textContent = COMPANY_TAG;
+var EMPLOYER_NOTE = "Every person who finishes this interview gets a real answer, not silence. Our hiring manager reviews completed interviews within 3 business days. If your answers and resume line up with what the work needs, you hear from us to book the sit-down. If they don't line up yet, we tell you that too — honestly — because tradespeople deserve better than the application black hole.";
+function fmt(s){ return Math.floor(s/60) + ":" + ("0"+s%60).slice(-2); }
+function finish(){
+  $('stage').style.display='none';
+  $('thinkview').style.display='block';
+  window.scrollTo(0,0);
+  fetch('http://127.0.0.1:8799/score', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({resume: resumeText || ('Applicant attached: ' + resumeName), roles: picked, answers: log, name: NAME})
+  }).then(function(r){ return r.json(); })
+    .then(function(j){ render(j); })
+    .catch(function(err){ render({ok:false, error:String(err)}); });
+  // land this applicant in the owner board (ranked card) — fire and forget
+  if (POST_TO_BOARD) {
+    fetch(BOARD_URL, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name: NAME, roles: picked, resume: resumeText || ('Attached file: ' + resumeName), answers: log})
+    }).catch(function(){});
+  }
+}
+function render(j){
+  $('thinkview').style.display='none';
+  var total = 0; log.forEach(function(x){ total += x.secs; });
+  var roles = picked.map(function(r){ return '<span class="em-tag">'+esc(r)+'</span>'; }).join('');
+  var v = (j && j.ok) ? j : null;
+  var verdict = v ? '<div class="verdict ' + (String(v.verdict||'').toLowerCase()==='advance'?'advance':'hold') + '">'
+    + '<div class="v1">MANAGER\'S AI VERDICT: ' + esc(v.verdict || 'REVIEW') + '</div>'
+    + '<div class="v2">' + esc(v.summary || '') + '</div></div>' : '';
+  var chips = v ? '<div class="scorerow">'
+    + '<div class="scorechip"><div class="n">' + Math.round(avg(v,'alignment')) + '</div><div class="l">ANSWER ALIGNMENT</div></div>'
+    + '<div class="scorechip"><div class="n">' + Math.round(avg(v,'consistency')) + '</div><div class="l">RESUME CONSISTENCY</div></div>'
+    + '<div class="scorechip"><div class="n">' + fmt(total) + '</div><div class="l">TOTAL TIME</div></div>'
+    + '<div class="scorechip"><div class="n">' + log.length + '</div><div class="l">UNIQUE QUESTIONS</div></div>'
+    + '</div>' : '';
+  var rows = log.map(function(x,i){
+    var sc = (v && v.answers && v.answers[i]) ? v.answers[i] : null;
+    return '<tr><td style="white-space:nowrap"><span class="t-pill">'+fmt(x.secs)+'</span></td>'
+      + '<td><b>Q'+(i+1)+'.</b> '+esc(x.q)+'<br><span style="color:#78909c;font-size:12px">'+esc(x.who)+'</span>'
+      + (sc ? '<span class="jnote">AI: ' + esc(sc.note||'') + ' — alignment ' + (sc.alignment!=null?sc.alignment:'—') + ' / consistency ' + (sc.consistency!=null?sc.consistency:'—') + '</span>' : '')
+      + '</td><td>'+esc(x.a).replace(/\n/g,'<br>')+'</td></tr>';
+  }).join('');
+  var fallback = v ? '' : '<p class="em-p">Scoring service unreachable from this machine (' + esc((j&&j.error)||'no response') + '). Your answers and timing are intact below — the manager still sees everything.</p>';
+  var html = '<div class="em-head"><div class="co">' + esc(COMPANY_NAME) + '</div>'
+    + '<div class="sub">Applicant Report — HireHarbor Pre-Interview · ' + new Date().toLocaleString() + '</div></div>'
+    + '<div class="em-body">'
+    + '<h3 class="em-h">' + esc(NAME) + '</h3>'
+    + '<p class="em-p"><b>Resume on file:</b> ' + esc(resumeName || 'not attached') + '</p>'
+    + '<p class="em-p"><b>Roles applied (' + picked.length + '):</b> ' + roles + '</p>'
+    + fallback + verdict + chips
+    + '<table class="qa"><tr><th>TIME</th><th>QUESTION + THE AI\'S READ</th><th>THEIR ANSWER</th></tr>' + rows + '</table>'
+    + '<div class="em-note"><b>A word from Cooling Technologies:</b> ' + esc(EMPLOYER_NOTE) + '</div>'
+    + '<p class="em-p" style="margin-top:14px">Every answer was scored on meaning — the AI read your resume against each answer and left its reasoning in blue. No keyword bots. No application black hole.</p>'
+    + '</div>'
+    + '<div class="em-foot">Cooling Technologies Ltd · 4212 Barlow Trail SE, Calgary AB · You are receiving this because you applied with us. Questions? careers@coolingtech.example</div>';
+  $('emailframe').innerHTML = html;
+  $('mailview').style.display='block';
+  window.scrollTo(0,0);
+}
+function avg(v, k){
+  if(!v.answers || !v.answers.length) return 0;
+  var s = 0, n = 0;
+  v.answers.forEach(function(a){ if(a && a[k] != null){ s += a[k]; n++; } });
+  return n ? s/n : 0;
+}
+</script>
+</body>
+</html>
