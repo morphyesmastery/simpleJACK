@@ -1824,10 +1824,7 @@ def call_model(messages, model=None, _retry_cloud=True, _request_id=None):
             # reasoning=0/content=0 restarts that inherited NOTHING. The steer
             # is CONSUMED HERE but held one beat: it re-fires on the next
             # chunk check once thinking exists to inherit. No steer is lost.
-            if _STEER["text"]:
-                if not full_reasoning and not full_content and not tool_calls_acc:
-                    time.sleep(0.2)
-                    continue  # hold the steer until there is a breath to keep
+            if _STEER["text"] and (full_reasoning or full_content or tool_calls_acc):
                 steer_text = _STEER["text"]
                 _STEER["text"] = None  # consume immediately — one steer per break
                 # STEER QUEUE DRAIN: after consuming the landed steer, pull the
