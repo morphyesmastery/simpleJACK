@@ -324,10 +324,26 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
   background: rgba(217,120,52,0.45); border: 1px solid var(--border);
   backdrop-filter: blur(6px);
 }
+/* STEER BUBBLE (friend 2026-09-09): the operator's mid-flight words —
+   italics, navy letters, white bubble. Distinct from normal user turns
+   so he can always SEE what he told the model while it was thinking. */
+.bubble.user.steer {
+  background: #ffffff; border: 1px solid #1b2a4a;
+}
+.bubble.user.steer .body { color: #1b2a4a; font-style: italic; }
+.bubble.user.steer .who { color: #1b2a4a; }
 .bubble.aila {
   align-self: flex-start;
   background: rgba(10,26,46,0.85); border: 1px solid var(--border);
   backdrop-filter: blur(6px);
+  position: relative; padding-bottom: 28px;
+}
+/* THE WINK — the considering face is his signature (Trent's order, 2026-09-18; ported to the SERVED copy same day) */
+.bubble.aila::after {
+  content: "\1F914";
+  position: absolute; right: 10px; bottom: 6px;
+  font-size: 0.85rem; opacity: 0.55; filter: grayscale(30%);
+  pointer-events: none;
 }
 .bubble .who {
   font-family: var(--display); font-size: 0.65rem;
@@ -677,6 +693,39 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
   .rsvp-trace-body { max-height: 55vh; }
   .rsvp-display { min-height: 80px; }
   .rsvp-live-trace { max-height: 140px; }
+  /* LAW19 APP SHELL (friend 2026-09-12): phone = app. Wallpaper + header
+     + query row PINNED, thread scrolls inside, action buttons UNDER
+     the query box, never beside it. */
+  .video-wrap { position: fixed; }
+  .ui { height: 100vh; height: 100dvh; }
+  .input-wrap { flex-wrap: wrap; }
+  .input-wrap textarea { flex: 1 1 auto; min-width: 0; }
+  .input-wrap .provider-select { flex: 1 1 auto; max-width: none; }
+  .input-wrap .send-btn { flex: 0 0 auto; }
+
+  /* MOBILE APP SHELL (Trent 2026-09-13, surgical): title bar pinned top,
+     chat scrolls between, textbox pinned bottom — like the desktop, on
+     every phone. No fixed pixel assumptions, viewport-driven only. */
+  .ui { height: 100dvh; overflow: hidden; }
+  header {
+    position: sticky; top: 0; z-index: 50;
+    flex: 0 0 auto; height: var(--header-h);
+  }
+  .app { display: flex; flex-direction: column; height: calc(100dvh - var(--header-h)); min-height: 0; }
+  .tab-bar { flex: 0 0 auto; overflow-x: auto; }
+  .plus-btn { display: none !important; }  /* MOBILE (Trent 2026-09-13): add-tab + renders under the pinned textbox and hides the menu — gone on mobile, desktop keeps it */
+  .workspace { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .workspace > .tab-panel.active { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+  .chat-log { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .input-area {
+    position: sticky; bottom: 0; z-index: 50; flex: 0 0 auto;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+  /* Touch-sized targets, full-width layout */
+  .input-wrap textarea { min-height: 46px; font-size: 16px; }  /* 16px = iOS no-zoom */
+  .input-wrap .send-btn, .input-wrap .provider-select { height: 48px; }
+  .rsvp-live-trace { max-height: 30vh; }
+
 }
 </style>
 </head>
@@ -794,6 +843,12 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
       </div>
     </div>
 
+    <h2>Output</h2>
+    <input type="text" id="railOutputPath" class="model-sel" spellcheck="false"
+           placeholder="paste output folder path"
+           title="The law of the land: every skill writes its finished work here. Saved to AGENTS.md — every agent reads it every message." />
+    <div class="status" id="railOutputStatus">checking AGENTS.md...</div>
+
   </aside>
 
   <!-- TAB BAR (FreedomNow persona-tabs) -->
@@ -817,10 +872,8 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
     <!-- CHAT PANEL (shared across tabs — conversations are per-tab) -->
     <div class="tab-panel active" id="panel-chat">
       <div class="chat-log" id="chatLog"></div>
-      <div class="stack-panel" id="inlineStackPanel">
-        <div class="stack-row"><span class="label">STACK depth</span><span class="val" id="stackDepthInline">0</span></div>
-        <div class="stack-row"><span class="label">RUNNING</span><span class="val busy" id="stackCurrentInline">(idle)</span></div>
-      </div>
+      <!-- INLINE STACK CARD REMOVED (Trent 2026-09-13): wasted phone screen
+           under the chat for no reason. Stack state lives in the Stack tab. -->
       <div class="input-area">
         <div class="input-wrap">
           <textarea id="promptInput" placeholder="Talk to AILA..." autofocus></textarea>
@@ -843,6 +896,18 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
                   <button class="send-btn" style="height:40px;border:1px solid var(--rust);border-radius:10px;padding:10px 22px;background:var(--rust);color:var(--bg);font-weight:700;cursor:pointer;font-size:0.85rem;white-space:nowrap;font-family:var(--display);letter-spacing:0.04em;transition:all 0.15s" onclick="stackGo()">Dispatch GO</button>
                   <button class="send-btn" style="height:40px;border:1px solid var(--rust);border-radius:10px;padding:10px 22px;background:var(--rust);color:var(--bg);font-weight:700;cursor:pointer;font-size:0.85rem;white-space:nowrap;font-family:var(--display);letter-spacing:0.04em;transition:all 0.15s" onclick="stackPause()"><span>⚙</span> Pause</button>
                 </div>
+      </div>
+    </div>
+
+    <!-- CONTACT TIME PANEL (Trent's order 2026-09-18: the daily 13:00 call routine.
+         Tab only appears when cards are due — the routine runs HIM. -->
+    <div class="tab-panel" id="panel-contact">
+      <div class="chat-log">
+        <h2 style="font-family:var(--display);color:var(--orange);text-transform:uppercase;letter-spacing:0.04em">Contact Time</h2>
+        <p style="color:var(--muted);font-size:0.82rem;margin-bottom:10px">One human at a time. Why you are calling, the number, the documents. Decide at the bottom: NO ends contact forever, DELAY pushes to tomorrow or the date you set, BOOK opens the calendar. The card stays until you decide.</p>
+        <div id="contactCard"></div>
+        <div id="contactEmpty" style="display:none;color:var(--muted);font-size:0.95rem;margin-top:8px">List is clear. Nothing waiting. WE WORK HERE.</div>
+        <div style="margin-top:14px;color:var(--muted);font-size:0.75rem" id="contactCount"></div>
       </div>
     </div>
 
@@ -891,6 +956,7 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
 
 <script src="marked.min.js"></script>
 <script src="qrcode.min.js"></script>
+<script src="cards.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 //  simpleJACK v2 — reimagined dashboard
@@ -898,6 +964,46 @@ header .nuke-btn:disabled { opacity: 0.45; cursor: wait; }
 // ══════════════════════════════════════════════════════════════
 
 const API = '';  // same origin — simplejack.py on port 8797 (portable)
+
+// ── OUTPUT PATH BOX (operator 2026-09-17) ────────────────────
+// The rail box IS the law of the land: paste a folder, hit Enter, and
+// AGENTS.md carries "OUTPUT_PATH: <folder>" — every agent reads it every
+// message. Change the box, change where everything goes. Zero rediscovery.
+function loadOutputPath() {
+  fetch(API + '/api/output_path').then(r => r.json()).then(d => {
+    const box = document.getElementById('railOutputPath');
+    const st  = document.getElementById('railOutputStatus');
+    if (box && d.path) box.value = d.path;
+    if (st) st.textContent = d.path ? ('→ ' + d.path) : 'no path set — paste one';
+  }).catch(() => {
+    const st = document.getElementById('railOutputStatus');
+    if (st) st.textContent = 'brain not reachable';
+  });
+}
+function saveOutputPath() {
+  const box = document.getElementById('railOutputPath');
+  const st  = document.getElementById('railOutputStatus');
+  if (!box) return;
+  fetch(API + '/api/output_path', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: box.value })
+  }).then(r => r.json()).then(d => {
+    if (d.ok) {
+      st.textContent = d.path ? ('saved → ' + d.path) : 'cleared';
+      st.style.color = 'var(--green, #6f6)';
+      loadOutputPath();
+    } else {
+      st.textContent = 'save failed: ' + (d.error || '?');
+      st.style.color = 'var(--red, #f66)';
+    }
+  }).catch(e => { st.textContent = 'save failed: brain not reachable'; });
+}
+document.getElementById('railOutputPath').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); saveOutputPath(); }
+});
+document.getElementById('railOutputPath').addEventListener('blur', saveOutputPath);
+
 let activeTab = 'local-aila';
 let taskCounter = 0;
 
@@ -906,10 +1012,57 @@ const bgv = document.getElementById('bgVideo');
 if (bgv) { bgv.playbackRate = 0.2; bgv.play().catch(() => {}); }
 
 // ── TAB SYSTEM ────────────────────────────────────────────────
+// DEVICE CLAIM (Trent 2026-09-13): the screen you SPEAK to owns the run.
+// Every page gets a stable device id; on send/steer it stamps
+// sj_last_speaker into localStorage; the idle live-watcher defers for 3s
+// if another device spoke recently, so the speaking screen renders live
+// and the other screen catches up from history at reply time.
+const SJ_DEVICE = (() => {
+  let d = null;
+  try { d = localStorage.getItem('sj_device'); } catch {}
+  if (!d) {
+    d = 'dev-' + Math.random().toString(36).slice(2, 9);
+    try { localStorage.setItem('sj_device', d); } catch {}
+  }
+  return d;
+})();
+function sjStampSpeaker() {
+  try {
+    localStorage.setItem('sj_last_speaker', SJ_DEVICE);
+    localStorage.setItem('sj_speaker_ts', String(Date.now()));
+  } catch {}
+}
+function sjOtherDeviceSpokeRecently(ms = 3000) {
+  try {
+    const who = localStorage.getItem('sj_last_speaker');
+    const ts = parseInt(localStorage.getItem('sj_speaker_ts') || '0', 10);
+    return who && who !== SJ_DEVICE && (Date.now() - ts) < ms;
+  } catch { return false; }
+}
+
 // Tabs stored in localStorage — survive refresh
 const BUILTIN_TABS = [
-  { id: 'local-aila', name: 'Local AILA', sub: 'sovereign · offline · zero cost', icon: '🏠', locked: true }
+  { id: 'local-aila', name: 'Local AILA', sub: 'sovereign · offline · zero cost', icon: '🏠', locked: true },
+  { id: 'contact-time', name: 'CONTACT', sub: '13:00 · call time', icon: '📞', locked: true, panel: 'panel-contact' }
 ];
+
+// CONTACT tab visibility (Trent's design, corrected 2026-09-19): the tab
+// EXISTS whenever at least one card is due (not NO'd, not deferred to a
+// future date). All sorted = tab gone. New cards or a delay expiring =
+// tab pops back. NO hour gate — morning, noon, night, work is work.
+function contactTabShouldShow() {
+  try {
+    const cards = (window.SJ_CARDS && window.SJ_CARDS.cards) ? window.SJ_CARDS.cards : [];
+    if (!cards.length) return false;
+    const p = n => String(n).padStart(2, '0');
+    const d = new Date();
+    const today = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+    let nos = [], defer = {};
+    try { nos = JSON.parse(localStorage.getItem('sj_contact_no') || '[]'); } catch (e) {}
+    try { defer = JSON.parse(localStorage.getItem('sj_contact_defer') || '{}'); } catch (e) {}
+    return cards.some(c => !nos.includes(c.id) && (!defer[c.id] || defer[c.id].until <= today));
+  } catch (e) { return false; }
+}
 
 function loadTabs() {
   try { return JSON.parse(localStorage.getItem('sj_tabs') || '[]'); } catch { return []; }
@@ -925,7 +1078,7 @@ function renderTabs() {
   const bar = document.getElementById('tabBar');
   const all = getAllTabs();
   // Only render items with dest=tab (or no dest — backward compat)
-  const tabItems = all.filter(t => !t.dest || t.dest === 'tab');
+  const tabItems = all.filter(t => (!t.dest || t.dest === 'tab') && (t.id !== 'contact-time' || contactTabShouldShow()));
   let html = '';
   tabItems.forEach(t => {
     const cls = (t.id === activeTab) ? 'sj-tab active' : 'sj-tab';
@@ -969,12 +1122,18 @@ function switchToTab(tabId, el) {
 
   // BUILT-IN tabs (local-aila) share the chat panel.
   // MASTERPIECE tabs get their own panel via render_html() — same as the rail nav door.
-  if (tab && tab.path && tabId !== 'local-aila') {
+  if (tab && tab.path && tabId !== 'local-aila' && tabId !== 'contact-time') {
     navClickMasterpiece(tabId, el);
     return;
   }
 
   document.querySelectorAll('.workspace > .tab-panel').forEach(p => p.classList.remove('active'));
+  // CONTACT tab owns its own panel (Trent 2026-09-18) — everything else is chat.
+  if (tabId === 'contact-time') {
+    document.getElementById('panel-contact').classList.add('active');
+    if (typeof renderContactCard === 'function') renderContactCard();
+    return;
+  }
   document.getElementById('panel-chat').classList.add('active');
 
   window.activeHook = (tab && tab.hook) ? tab.hook : null;
@@ -1212,6 +1371,17 @@ function rsvpStart(reasoningText) {
   _rsvpActive = true;
   _rsvpPaused = false;
   _rsvpMinimized = false;
+
+  // ── EMPTY-STREAM VISIBILITY (operator order 2026-09-20) ─────────────
+  // The trace used to stay BLANK until the first reasoning chunk arrived.
+  // With a dying stream that never chunks, the pane looked "gone" — silence
+  // indistinguishable from absence. Now the trace SAYS what it is waiting
+  // for, so an empty stream is a named state on screen, not a void:
+  const _lt = _rsvpEl('LiveTrace');
+  if (_lt && _lt.dataset.painted !== '1') {
+    _lt.dataset.painted = '1';
+    _lt.textContent = 'waiting for first reasoning chunk — stream is connecting';
+  }
 
   // DEDUP: only process NEW text since last poll
   const newText = reasoningText.substring(_rsvpLastLen);
@@ -1471,6 +1641,13 @@ function rsvpBeginStream(requestId) {
     fetch(API + '/api/reasoning/' + requestId)
       .then(r => r.json())
       .then(data => {
+        // TURN COUNTER — REASONING CHANNEL (2026-09-10): the reasoning poll is
+        // the most reliable wire (300ms). Paint the live turn here too, so the
+        // trace-box counter never freezes even if the status poll hiccups.
+        if (data.turn) {
+          const rt = document.getElementById('rsvpTurnBubble');
+          if (rt) { rt.innerText = 'TURN ' + data.turn; }
+        }
         if (data.reasoning && data.reasoning.length > 0) {
           rsvpStart(data.reasoning);
           // FULL trace renders live below the RSVP display — reading
@@ -1515,6 +1692,7 @@ function rsvpActivateInBubble(bubbleEl, requestId) {
         '<span class="dot" style="background:var(--rust)"></span>REASONING TRACE' +
       '</span>' +
       '<div class="rsvp-controls">' +
+        '<span id="rsvpTurnBubble" style="color:var(--text);font-size:0.7rem;font-weight:600;font-family:var(--font)">TURN 1</span>' +
         '<label>WPM</label>' +
         '<input type="range" id="rsvpWpmBubble" min="60" max="1000" value="1000" step="10" ' +
           'oninput="document.getElementById(\'rsvpWpmBubbleVal\').innerText=this.value" ' +
@@ -1528,6 +1706,12 @@ function rsvpActivateInBubble(bubbleEl, requestId) {
     '<div class="rsvp-display" id="rsvpDisplayBubble"></div>' +
     '<pre class="rsvp-live-trace" id="rsvpLiveTrace"></pre>';
   bodyEl.appendChild(rsvpEl);
+  // EMPTY-STREAM VISIBILITY (operator order 2026-09-20): paint the waiting
+  // state the INSTANT the pane is built — before any chunk arrives. If the
+  // stream never chunks, this line is the difference between a pane that
+  // says what it waits for and a pane that looks GONE.
+  const _wlt = document.getElementById('rsvpLiveTrace');
+  if (_wlt) { _wlt.dataset.painted = '1'; _wlt.textContent = 'waiting for first reasoning chunk — stream is connecting'; }
   _rsvpScrollLog(); // snap to bottom so user sees the reasoning trace immediately
   rsvpBeginStream(requestId);
 }
@@ -1871,14 +2055,15 @@ function sendChat() {
   const input = document.getElementById('promptInput');
   const prompt = input.value.trim();
   if (!prompt) return;
+  sjStampSpeaker();  // DEVICE CLAIM: this screen owns the next run
 
   // ── STEER BRANCH: a run is live → amend it, don't parallel it ──
   if (liveRequestId) {
     input.value = '';
     const log = document.getElementById('chatLog');
     const steerBubble = document.createElement('div');
-    steerBubble.className = 'bubble user';
-    steerBubble.innerHTML = '<div class="who">You <span class="model-tag" style="color:var(--orange)">· STEER</span></div><div class="body">' + esc(prompt) + '</div>';
+    steerBubble.className = 'bubble user steer';
+    steerBubble.innerHTML = '<div class="who">You <span class="model-tag" style="color:#1b2a4a">· STEER</span></div><div class="body">' + esc(prompt) + '</div>';
     // STEER-VISIBILITY (friend 2026-09-07): the steer text sits ABOVE the
     // live reasoning bubble, not beneath it — the operator steers what he
     // is watching; his words must be the newest thing on screen, not buried
@@ -1902,7 +2087,7 @@ function sendChat() {
         sendChatRestore(prompt);
       }
     })
-    .catch(() => { liveRequestId = null; sendChatRestore(prompt); });
+    .catch(() => { input.value = prompt; });  /* STEER FIX 2026-09-12: on steer send failure the words return to the box and the phone KEEPS WATCHING the live run. Old line re-sent the steer as a second parallel chat. */
     return;
   }
 
@@ -1921,7 +2106,7 @@ function sendChat() {
   const ailaBubble = document.createElement('div');
   ailaBubble.className = 'bubble aila';
   ailaBubble.id = 'aila-thinking-' + taskCounter;
-  ailaBubble.innerHTML = '<div class="who">AILA <span class="model-tag">thinking...</span><button class="stop-btn" onclick="stopAILA()">STOP</button></div><div class="body"><div class="typing"><span></span><span></span><span></span></div></div>';
+  ailaBubble.innerHTML = '<div class="who">AILA <span class="model-tag" style="color:var(--text);font-size:0.7rem;font-weight:600"></span><button class="stop-btn" onclick="stopAILA()">STOP</button></div><div class="body"><div class="typing"><span></span><span></span><span></span></div></div>';
   log.appendChild(ailaBubble);
   liveBubbleEl = ailaBubble;  // STEER-VISIBILITY: steers insert above this bubble
   log.scrollTop = log.scrollHeight;
@@ -1972,6 +2157,23 @@ function sendChat() {
               ailaBubble.innerHTML = '<div class="who">AILA <span class="model-tag">[' + esc(sd.model || '') + '] · ' + (sd.turns || 0) + ' turn(s)</span></div>' +
                 '<div class="body">' + esc(sd.reply || '') + rsvpTraceDropdown(sd.reasoning || '') + '</div>';
               log.scrollTop = log.scrollHeight;
+            } else if (sd.status === 'thinking') {
+              // TURN COUNTER — THINKING PHASE (friend 2026-09-09): paint the
+              // live turn number the backend has pushed. The backend seeds
+              // turn 1 at request start and increments every loop pass —
+              // the screen mirrors the console from the first tick.
+              const whoEl0 = ailaBubble.querySelector('.who');
+              if (whoEl0) {
+                whoEl0.innerHTML = 'AILA <span class="model-tag" style="color:var(--text);font-size:0.7rem;font-weight:600">[' + esc(sd.model || AILA_MODEL || '') + ']</span><button class="stop-btn" onclick="stopAILA()">STOP</button>';
+              }
+              // RSVP TURN COUNTER (friend 2026-09-09): the reasoning trace
+              // replaces the bubble body — the who-header counter above is
+              // wiped with it. Paint the live turn INSIDE the RSVP controls
+              // row, beside the STOP button, so the count never vanishes.
+              const rsvpTurn = document.getElementById('rsvpTurnBubble');
+              if (rsvpTurn) {
+                rsvpTurn.innerText = 'TURN ' + (sd.turn || 1);
+              }
             } else if (sd.status === 'error') {
               clearInterval(interval);
               rsvpStop();
@@ -2021,6 +2223,7 @@ function sendChat() {
     let polls = 0;
     const maxPolls = 7200;
     let errs = 0;
+    let unknowns = 0;  // PHONE-STEER RSVP KEEPALIVE (2026-09-13)
     const interval = setInterval(async () => {
       polls++;
       if (polls > maxPolls) {
@@ -2033,6 +2236,7 @@ function sendChat() {
         if (!sr.ok) throw new Error('HTTP ' + sr.status);
         const sd = await sr.json();
         errs = 0;
+        if (sd.status !== 'unknown') unknowns = 0;
         if (sd.status === 'done') {
           clearInterval(interval);
           rsvpStop();
@@ -2052,7 +2256,13 @@ function sendChat() {
           if (whoEl2) {
             const toolNames = (sd.tools_used && sd.tools_used.length)
               ? sd.tools_used.map(t => t.name).join(' → ') : '';
-            whoEl2.innerHTML = 'AILA <span class="model-tag">[' + esc(sd.model || AILA_MODEL || '') + '] · TURN ' + (sd.turn || 1) + (toolNames ? ' · ' + esc(toolNames) : '') + '</span><button class="stop-btn" onclick="stopAILA()">STOP</button>';
+            whoEl2.innerHTML = 'AILA <span class="model-tag" style="color:var(--text);font-size:0.7rem;font-weight:600">[' + esc(sd.model || AILA_MODEL || '') + ']' + (toolNames ? ' · ' + esc(toolNames) : '') + '</span><button class="stop-btn" onclick="stopAILA()">STOP</button>';
+          }
+          // RSVP TURN COUNTER (working phase): keep the in-trace counter
+          // beside the RSVP STOP button in sync with the live turn number.
+          const rsvpTurnW = document.getElementById('rsvpTurnBubble');
+          if (rsvpTurnW) {
+            rsvpTurnW.innerText = 'TURN ' + (sd.turn || 1);
           }
         } else if (sd.status === 'error') {
           clearInterval(interval);
@@ -2061,15 +2271,26 @@ function sendChat() {
           liveBubbleEl = null;   // STEER-VISIBILITY: no live bubble anymore
           ailaBubble.innerHTML = '<div class="who" style="color:var(--red)">AILA</div><div class="body">' + esc(sd.reply || 'Error') + '</div>';
         } else if (sd.status === 'unknown') {
-          clearInterval(interval);
-          liveRequestId = null;  // STEER: request lost — release the textbox
-          liveBubbleEl = null;   // STEER-VISIBILITY: request gone — no live bubble
-          // SELF-HEAL POLL (friend 2026-09-07): the request died with a backend
-          // restart, but the model may have finished it after the restart via
-          // the transcript replay. Reload history — if the reply exists, it
-          // lands on screen; if not, the bubble says so honestly.
-          loadHistory();
-          ailaBubble.innerHTML = '<div class="who" style="color:var(--yellow)">AILA</div><div class="body">Request lost in backend restart — history reloaded. If the reply completed, it is in the log above.</div>';
+          // PHONE-STEER RSVP KEEPALIVE (2026-09-13): a steer from the phone
+          // re-calls the model; during heavy load the old request id can read
+          // 'unknown' for a beat. The OLD code cleared the interval and let
+          // the page go dark until a manual refresh — the operator lost the
+          // trace entirely and could not monitor. NEW: do NOT surrender on
+          // the first 'unknown'. Keep this poll alive; the reasoning
+          // endpoint still serves the trace by id. Only give up after a
+          // sustained unknown (12 consecutive = ~6s), and even then re-arm
+          // the 2s live watcher so any new/reattached run lights the screen
+          // without a refresh.
+          unknowns = (unknowns || 0) + 1;
+          if (unknowns >= 12) {
+            clearInterval(interval);
+            rsvpStop();
+            liveRequestId = null;
+            liveBubbleEl = null;
+            loadHistory();
+            ailaBubble.innerHTML = '<div class="who" style="color:var(--yellow)">AILA</div><div class="body">Request lost in backend restart — history reloaded. If the reply completed, it is in the log above.</div>';
+          }
+          // else: keep polling — the run may be mid-steer-recall.
         }
       } catch(pe) {
         errs++;
@@ -2164,9 +2385,14 @@ function loadHistory() {
         const ts = entry.ts || '';
         if (role === 'user') {
           const bubble = document.createElement('div');
-          bubble.className = 'bubble user';
+          // STEER PERSIST RENDER (friend 2026-09-09): steers saved with the
+          // [STEER] prefix rebuild as white/navy italic bubbles — the
+          // operator's mid-flight words survive every rebuild, styled.
+          const isSteer = typeof content === 'string' && content.startsWith('[STEER] ');
+          bubble.className = 'bubble user' + (isSteer ? ' steer' : '');
+          const shown = isSteer ? content.slice(8) : content;
           const tsStr = ts ? '<span class="ts">' + esc(ts.substring(0,19)) + '</span>' : '';
-          bubble.innerHTML = '<div class="who">You ' + tsStr + '</div><div class="body">' + esc(content) + '</div>';
+          bubble.innerHTML = '<div class="who">' + (isSteer ? 'You <span class="model-tag" style="color:#1b2a4a">· STEER</span>' : 'You') + ' ' + tsStr + '</div><div class="body">' + esc(shown) + '</div>';
           frag.appendChild(bubble);
         } else if (role === 'assistant') {
           const bubble = document.createElement('div');
@@ -2247,9 +2473,100 @@ checkSetupStatus();  // first-run gate — shows overlay if nothing configured
 loadHistory();
 refreshVoicePill();
 initRailClock();
+loadOutputPath();  // rail OUTPUT box — reads the law from AGENTS.md
 setInterval(checkAILAHealth, 10000);
 setInterval(loadModels, 30000);
 setInterval(refreshStack, 3000);
+
+// ── LIVE RUN REATTACH (friend 2026-09-12) ─────────────────────────
+// The trace used to die with the page: leave while she thinks, come
+// back, and the rebuilt page showed nothing live — the run was real,
+// the reasoning was real, but the page had no ticket to watch. Steers
+// then landed as new messages BELOW her reply. Now: on boot, ask the
+// backend if a run is live. If yes: reopen the RSVP box on that
+// ticket, stream the trace, mark the textbox steer-mode. The trace
+// survives page leaves. Steers land as steers.
+// LIVE-WATCH UPGRADE (friend 2026-09-12): the reattach used to fire ONCE
+// at page load. If the page was already open when a run started from the
+// PHONE (or a second tab), the page never picked up the ticket — the
+// operator watched a dead screen while she thought. Now: when no request
+// is live locally, poll /api/live every 2s. A run appearing from ANY
+// source (phone, other tab, backend restart) reattaches the SAME way as
+// a boot reattach. The trace follows the run, not the page load.
+let _liveWatchPoll = null;
+function reattachLiveRun() {
+  fetch(API + '/api/live')
+    .then(r => r.json())
+    .then(data => {
+      if (!data || !data.live || !data.request_id) return;
+      if (liveRequestId === data.request_id) return;  // already watching
+      const reqId = data.request_id;
+      const log = document.getElementById('chatLog');
+      // Reattach bubble — same shape as a fresh thinking bubble
+      const ailaBubble = document.createElement('div');
+      ailaBubble.className = 'bubble aila';
+      ailaBubble.innerHTML = '<div class="who">AILA <span class="model-tag" style="color:var(--text);font-size:0.7rem;font-weight:600">[' + esc(data.model || '') + ']</span><button class="stop-btn" onclick="stopAILA()">STOP</button></div><div class="body"><div class="typing"><span></span><span></span><span></span></div></div>';
+      log.appendChild(ailaBubble);
+      log.scrollTop = log.scrollHeight;
+      liveRequestId = reqId;      // textbox steers, not parallels
+      liveBubbleEl = ailaBubble;  // steers insert above this bubble
+      rsvpActivateInBubble(ailaBubble, reqId);
+      // Same status poll as a fresh send — reuses the exact watcher logic
+      let polls = 0;
+      let unknowns = 0;  // PHONE-STEER RSVP KEEPALIVE (2026-09-13)
+      const interval = setInterval(async () => {
+        polls++;
+        if (polls > 7200) { clearInterval(interval); return; }
+        try {
+          const sr = await fetch(API + '/api/status/' + reqId);
+          if (!sr.ok) throw new Error('HTTP ' + sr.status);
+          const sd = await sr.json();
+          if (sd.status === 'done') {
+            clearInterval(interval);
+            rsvpStop();
+            liveRequestId = null;
+            liveBubbleEl = null;
+            ailaBubble.innerHTML = '<div class="who">AILA <span class="model-tag">[' + esc(sd.model || '') + '] · ' + (sd.turns || 0) + ' turn(s)</span></div>' +
+              '<div class="body">' + esc(sd.reply || '') + rsvpTraceDropdown(sd.reasoning || '') + '</div>';
+            refreshStack();
+          } else if (sd.status === 'error') {
+            clearInterval(interval);
+            rsvpStop();
+            liveRequestId = null;
+            liveBubbleEl = null;
+            ailaBubble.innerHTML = '<div class="who" style="color:var(--red)">AILA</div><div class="body">' + esc(sd.reply || 'Error') + '</div>';
+          } else if (sd.status === 'unknown') {
+            // PHONE-STEER RSVP KEEPALIVE (2026-09-13): phone steers re-call
+            // the model and the old id can read unknown briefly. NEVER
+            // surrender instantly and never hang silently: count consecutive
+            // unknowns, keep polling (the trace endpoint still serves by id),
+            // and only after ~6s sustained unknown fall back to history
+            // reload. The 2s live watcher is already armed and will light
+            // the next run without any manual refresh.
+            unknowns++;
+            if (unknowns >= 6) {
+              clearInterval(interval);
+              rsvpStop();
+              liveRequestId = null;
+              liveBubbleEl = null;
+              loadHistory();
+            }
+          } else if (sd.status === 'working') {
+            unknowns = 0;
+          }
+        } catch (e) { /* transient — keep watching */ }
+      }, 1000);
+    })
+    .catch(() => {});
+}
+reattachLiveRun();  // fire once at boot
+// LIVE-WATCH: when idle, keep asking — a run started from the phone must
+// appear on this page within 2 seconds, without a reload.
+_liveWatchPoll = setInterval(() => {
+  if (liveRequestId) return;  // already watching a run — the status poll owns it
+  if (sjOtherDeviceSpokeRecently()) return;  // DEVICE CLAIM: another screen is live-rendering this run
+  reattachLiveRun();
+}, 2000);
 
 // ── HISTORY SYNC WATCHER (friend 2026-09-07) ──────────────────────
 // The page used to load history ONCE at boot and never again. Any reply
@@ -2334,6 +2651,181 @@ function initRailClock() {
     apply();
   }, { passive: false });
 })();
+
+// ════════════════════════════════════════════════════════════════
+// CONTACT TIME ENGINE (Trent's order 2026-09-18, verbatim spec):
+// tab appears when cards are due; card = name, why-paragraph, docs link,
+// notes box, NO / DELAY / BOOK. NO = never contact again. DELAY = again
+// tomorrow, or the exact date Trent writes, or the name of who to call
+// if different. Card REMAINS until acted on. Trent keeps the list
+// honest (target: under ~15) while AILA feeds it ~10 outreach/day.
+// Cards load from cards.js next to this file (written daily by AILA).
+// ════════════════════════════════════════════════════════════════
+const CONTACT_DUE_HOUR = 13;   // the routine: 13:00 every day
+let contactCards = [];
+try { contactCards = (window.SJ_CARDS && window.SJ_CARDS.cards) ? window.SJ_CARDS.cards : []; }
+catch (e) { contactCards = []; }
+
+function contactTodayStr() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+
+// A card is DUE when: never deferred, or deferred to today-or-earlier.
+function contactDueCards() {
+  const today = contactTodayStr();
+  return contactCards.filter(c => {
+    if (contactNoList().includes(c.id)) return false;
+    const def = contactDeferrals()[c.id];
+    return !def || def.until <= today;
+  });
+}
+
+function contactNoList() {
+  let nos = [];
+  try { nos = JSON.parse(localStorage.getItem('sj_contact_no') || '[]'); } catch (e) {}
+  // disk-persisted NOs (survive browser resets) folded in by the daily feed
+  try { if (window.SJ_CARDS && window.SJ_CARDS.no_list) nos = nos.concat(window.SJ_CARDS.no_list); } catch (e) {}
+  return nos;
+}
+function contactDeferrals() {
+  try { return JSON.parse(localStorage.getItem('sj_contact_defer') || '{}'); } catch { return {}; }
+}
+function contactNotes() {
+  try { return JSON.parse(localStorage.getItem('sj_contact_notes') || '{}'); } catch { return {}; }
+}
+
+function renderContactCard() {
+  const host = document.getElementById('contactCard');
+  if (!host) return;
+  const due = contactDueCards();
+  const empty = document.getElementById('contactEmpty');
+  const count = document.getElementById('contactCount');
+  if (!due.length) {
+    host.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    if (count) count.textContent = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  const c = due[0];
+  const notes = contactNotes()[c.id] || '';
+  const docs = c.docs ? '<div style="margin-top:10px"><a href="' + c.docs + '" target="_blank" style="color:var(--orange);font-size:0.85rem">📄 Supporting documents</a></div>' : '';
+  const deferred = contactDeferrals()[c.id];
+  const deferTag = deferred && deferred.until > contactTodayStr()
+    ? '<div style="color:var(--muted);font-size:0.75rem;margin-top:6px">Deferred to ' + deferred.until + (deferred.who ? ' · ask for ' + deferred.who : '') + '</div>' : '';
+  host.innerHTML =
+    '<div style="background:rgba(10,26,46,0.85);border:1px solid var(--border);border-radius:12px;padding:18px;max-width:640px">' +
+      '<div style="font-family:var(--display);font-size:1.05rem;color:#fff">' + c.icon + ' ' + c.name + '</div>' +
+      '<div style="color:var(--orange);font-size:0.8rem;margin-top:2px">' + (c.role || '') + (c.phone ? ' · ' + c.phone : '') + '</div>' +
+      '<p style="color:#d8dee9;font-size:0.9rem;line-height:1.55;margin:10px 0 0">' + c.why + '</p>' +
+      docs + deferTag +
+      '<textarea id="contactNoteBox" placeholder="Notes from the call..." style="width:100%;min-height:64px;margin-top:12px;background:rgba(0,0,0,0.35);border:1px solid var(--border);border-radius:8px;color:#fff;padding:8px;font-size:0.85rem;font-family:var(--font)">' + (notes ? notes.replace(/</g, '&lt;') : '') + '</textarea>' +
+      '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">' +
+        '<button onclick="contactDecide(\'no\')" style="background:#7a1f1f;color:#fff;border:0;border-radius:8px;padding:10px 18px;font-weight:700;cursor:pointer;font-family:var(--display)">NO</button>' +
+        '<button onclick="contactDecide(\'delay\')" style="background:#7a5a1f;color:#fff;border:0;border-radius:8px;padding:10px 18px;font-weight:700;cursor:pointer;font-family:var(--display)">DELAY</button>' +
+        '<button onclick="contactDecide(\'book\')" style="background:var(--rust);color:var(--bg);border:0;border-radius:8px;padding:10px 18px;font-weight:700;cursor:pointer;font-family:var(--display)">BOOK</button>' +
+        '<input type="date" id="contactDeferDate" style="background:rgba(0,0,0,0.35);border:1px solid var(--border);border-radius:8px;color:#fff;padding:7px;font-size:0.8rem">' +
+        '<input type="text" id="contactDeferWho" placeholder="call back name (if different)" style="flex:1;min-width:160px;background:rgba(0,0,0,0.35);border:1px solid var(--border);border-radius:8px;color:#fff;padding:7px;font-size:0.8rem">' +
+      '</div>' +
+    '</div>';
+  if (count) count.textContent = due.length + ' waiting · list order: ' + due.map(x => x.name).join(' → ');
+}
+
+function contactSpeak(t) {
+  try {
+    fetch('/api/narrate', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: t, source: 'contact_card' }) });
+  } catch (e) { /* voice is best-effort; the card is the law */ }
+}
+
+function contactSaveNote() {
+  const box = document.getElementById('contactNoteBox');
+  const due = contactDueCards();
+  if (!box || !due.length) return;
+  const all = contactNotes();
+  all[due[0].id] = box.value;
+  localStorage.setItem('sj_contact_notes', JSON.stringify(all));
+}
+
+function contactDecide(kind) {
+  const due = contactDueCards();
+  if (!due.length) return;
+  const c = due[0];
+  contactSaveNote();
+  const dateVal = (document.getElementById('contactDeferDate') || {}).value || '';
+  const whoVal = (document.getElementById('contactDeferWho') || {}).value || '';
+
+  if (kind === 'no') {
+    const nos = contactNoList(); nos.push(c.id);
+    localStorage.setItem('sj_contact_no', JSON.stringify(nos));
+    // disk receipt: the injector folds this tag into tomorrow's cards.js no_list,
+    // so the NO survives even a browser reset. Machine-readable + human-true.
+    contactSpeak('CONTACT DECISION: NO for ' + c.id + '. They will not be contacted again.');
+  } else if (kind === 'delay') {
+    const all = contactDeferrals();
+    // Trent's law: DELAY with no date = AGAIN TOMORROW. With a date = that date.
+    // With a name = ask for that person on the callback.
+    all[c.id] = { until: dateVal || contactTomorrowStr(), who: whoVal };
+    localStorage.setItem('sj_contact_defer', JSON.stringify(all));
+    contactSpeak('Delay recorded for ' + c.name + '. Next call ' + (all[c.id].until) + (whoVal ? ', ask for ' + whoVal : '') + '.');
+  } else if (kind === 'book') {
+    // Google Calendar prefilled event — 30 min, tomorrow 13:00 unless dated.
+    const start = (dateVal || contactTomorrowStr()) + 'T13:00:00';
+    const end = (dateVal || contactTomorrowStr()) + 'T13:30:00';
+    const params = new URLSearchParams({
+      action: 'TEMPLATE', text: 'Call: ' + c.name + (c.role ? ' (' + c.role + ')' : ''),
+      dates: start + '/' + end, details: (c.why || '') + '\n\nPhone: ' + (c.phone || '') + (c.docs ? '\nDocs: ' + c.docs : ''),
+    });
+    window.open('https://calendar.google.com/calendar/render?' + params.toString(), '_blank');
+    contactSpeak('Calendar opened to book ' + c.name + '.');
+    return; // BOOK keeps the card until NO/DELAY lands — the call still has to happen
+  }
+  renderContactCard();
+  if (typeof renderTabs === 'function') renderTabs();
+}
+
+function contactTomorrowStr() {
+  const d = new Date(); d.setDate(d.getDate() + 1);
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+
+// ── THE ROUTINE: tab hides until due. Appears at 13:00 (or any later
+// open) while cards remain. A one-second tick flips it live if SimpleJack
+// is open across the hour — Trent hears the chime and sees the tab. ──
+function contactRefreshTabVisibility() {
+  const now = new Date();
+  const due = contactDueCards();
+  const bar = document.getElementById('tabBar');
+  const btn = bar ? bar.querySelector('[data-tab="contact-time"]') : null;
+  const isContactHour = true;  // hour gate REMOVED 2026-09-19 (Trent's design: due cards = visible, always)
+  const shouldBeVisible = due.length > 0;
+  if (shouldBeVisible && isContactHour && !btn && bar) {
+    renderTabs();
+    contactSpeak('Contact time. ' + due.length + (due.length === 1 ? ' call' : ' calls') + ' waiting, starting with ' + due[0].name + '.');
+  } else if ((!shouldBeVisible || !isContactHour) && btn) {
+    renderTabs();
+    // if Trent was sitting in the tab when it cleared, land him back on chat
+    if (typeof activeTab !== 'undefined' && activeTab === 'contact-time') {
+      const first = document.querySelector('#tabBar .sj-tab');
+      if (first) first.click();
+    }
+  }
+}
+setInterval(contactRefreshTabVisibility, 1000);
+
+// first paint: if already past 13:00 with cards due, the card is there
+setTimeout(contactRefreshTabVisibility, 800);
+
+// First paint of the CARD itself (tab visibility is re-checked every second;
+// this paints the card into the panel so a click at any time shows content).
+setTimeout(function () {
+  if (contactTabShouldShow() && typeof renderContactCard === 'function') {
+    renderContactCard();
+  }
+}, 600);
 </script>
 </body>
 </html>

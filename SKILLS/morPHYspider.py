@@ -107,37 +107,32 @@ def narrate(text):
 
 
 # ════════════════════════════════════════════════════════
-# LIGHTPANDA CALL — NO TIMEOUT
+# OBSCURA CALL — THE ONE WEB LANE (2026-09-11)
+# LightPanda/WSL2 RETIRED. Obscura is the sovereign browser.
 # ════════════════════════════════════════════════════════
+OBSCURA_EXE = Path(r"C:\Users\daddy\Desktop\simplejack-tauri-COPY\portable\tools\obscura\obscura.exe")
+
 def fetch_page(url, wait_ms=5000):
-    """Fetch a URL via LightPanda in WSL2. Returns dict with content or error."""
-    print(f"[spider] Fetching: {url}")
-    
-    cmd = (
-        f'$HOME/.local/bin/lightpanda fetch "{url}" '
-        f'--dump markdown '
-        f'--strip-mode "js,ui,css,invisible" '
-        f'--wait-ms {wait_ms} '
-        f'--json'
-    )
+    """Fetch a URL via Obscura fetch (fully rendered, local Rust browser). Returns dict with content or error."""
+    print(f"[spider] Fetching via Obscura: {url}")
 
     try:
         result = subprocess.run(
-            ["wsl", "-d", "Ubuntu", "--", "bash", "-c", cmd],
+            [str(OBSCURA_EXE), "fetch", url, "--dump", "markdown"],
             capture_output=True, text=True,
             timeout=None  # NO TIMEOUT. We wait.
         )
     except Exception as e:
-        return {"error": f"LightPanda call failed: {e}"}
+        return {"error": f"Obscura call failed: {e}"}
 
     if result.returncode != 0:
-        return {"error": f"LightPanda exit {result.returncode}: {result.stderr[:300]}"}
+        return {"error": f"Obscura exit {result.returncode}: {result.stderr[:300]}"}
 
-    try:
-        data = json.loads(result.stdout.strip())
-        return data
-    except json.JSONDecodeError:
-        return {"error": f"Could not parse output. Raw: {result.stdout[:300]}"}
+    content = result.stdout.strip()
+    if not content:
+        return {"error": "Obscura fetched the page but returned empty output."}
+
+    return {"content": content, "http_status": 200}
 
 
 # ════════════════════════════════════════════════════════
@@ -297,7 +292,7 @@ def write_done_token(token):
 # MAIN
 # ════════════════════════════════════════════════════════
 def main():
-    parser = argparse.ArgumentParser(description="morPHYspider — LightPanda web crawler")
+    parser = argparse.ArgumentParser(description="morPHYspider — Obscura web crawler (the ONE web lane)")
     parser.add_argument("--url", required=True, help="URL to crawl")
     parser.add_argument("--prompt", required=True, help="Question to answer from the page")
     parser.add_argument("--done-token", required=True, help="Dispatch token for done signal")

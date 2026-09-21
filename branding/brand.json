@@ -1,23 +1,29 @@
-﻿{
-    "name":  "MorPHYes Mastery",
-    "os_name":  "Sovereignty OS",
-    "palette":  {
-                    "bg":  "#0f2340",
-                    "orange":  "#d97834",
-                    "orange_hover":  "#e88a4a",
-                    "blue":  "#3a7ca5",
-                    "rust":  "#b8401e",
-                    "white":  "#ffffff",
-                    "ink":  "#ece6d8",
-                    "mut":  "#8a92a6",
-                    "line":  "rgba(255,255,255,0.08)",
-                    "card":  "rgba(255,255,255,0.02)"
-                },
-    "fonts":  {
-                  "display":  "Fraunces",
-                  "body":  "Spline Sans"
-              },
-    "voice_engine":  "piper",
-    "website":  "www.morphyesmastery.com",
-    "footer_cta":  "Get your MorPHYes masterpiece today"
+{
+  "name": "MorPHYes Mastery",
+  "os_name": "Sovereignty OS",
+  "palette": {
+    "bg": "#0f2340",
+    "orange": "#d97834",
+    "orange_hover": "#e88a4a",
+    "blue": "#3a7ca5",
+    "rust": "#b8401e",
+    "white": "#ffffff",
+    "ink": "#ece6d8",
+    "mut": "#8a92a6",
+    "line": "rgba(255,255,255,0.08)",
+    "card": "rgba(255,255,255,0.02)"
+  },
+  "fonts": {
+    "display": "Oswald",
+    "body": "Spline Sans",
+    "display_weight": "600",
+    "display_letter_spacing": "1px",
+    "note": "Operator decision 2026-09-11: the tight-set Oswald display style on racme (Ask a question / Search module library) IS the MorPHYes Mastery brand face. Enforce everywhere."
+  },
+  "voice_engine": "piper",
+  "website": "www.morphyesmastery.com",
+  "footer_cta": "Get your MorPHYes masterpiece today",
+  "aila": "Advanced Intelligence Learning Assistant",
+  "racme_backronym": "Retrieval Augmented Conversational Mentorship Education",
+  "aila_note": "Operator decision 2026-09-11: the tutor is named AILA everywhere. Never plain 'AI' on buttons or labels."
 }

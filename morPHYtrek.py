@@ -330,9 +330,22 @@ def piper_catalog():
         except: continue
     return cat
 
-def get_piper_model():
+def get_piper_model(voice=None):
+    """Pick a Piper model. Explicit voice wins; fallback is the global choice, then Alba."""
     cat = piper_catalog()
     if not cat: return None
+    # 1. Per-job voice (from the narration file's "voice" field)
+    if voice:
+        v = str(voice).strip()
+        if v in cat:
+            return cat[v]
+        v_path = Path(v)
+        if v_path.exists() and v_path.suffix == ".onnx":
+            return v_path
+        v_stem = v_path.stem if v.endswith(".onnx") else v
+        if v_stem in cat:
+            return cat[v_stem]
+        log(f"Voice '{v}' not in catalog — falling back")
     try:
         chosen = PIPER_VOICE_FILE.read_text(encoding="utf-8").strip()
         # accept stem OR full path that ends with known stem
@@ -363,9 +376,9 @@ def _piper_clean_env():
         env["VIRTUAL_ENV"] = str(Path(MORPHYVENV_PYTHON).parent.parent)
     return env
 
-def piper_generate(text):
+def piper_generate(text, voice=None):
     """Generate audio via Piper. Returns (np_array, sample_rate) or None."""
-    model = get_piper_model()
+    model = get_piper_model(voice)
     if not model:
         log("No Piper model found")
         return None
@@ -391,6 +404,7 @@ def piper_generate(text):
             input=text.encode("utf-8"),
             capture_output=True, timeout=60,
             env=env,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),  # 2026-09-20: piper wakes were painting console windows on every speak (operator report: 4-5 popups per Elias query). Hidden forever.
         )
         if result.returncode != 0 or not result.stdout:
             err = result.stderr.decode(errors='ignore')[:300] if result.stderr else 'no stderr (possible timeout or empty input)'
@@ -445,14 +459,25 @@ def split_sentences(text):
     return [s.strip() for s in parts if s.strip()]
 
 def read_queue_job(path):
-    """Read a narration job from the queue. Returns (text, voice, source, engine) or None."""
+    """Read a narration job from the queue. Returns (text, voice, origin, engine) or None.
+    REGISTER ROUTING (Trent, 2026-09-14, FINAL): the mouth determines where the
+    file originated from the REGISTER written inside the file. If a voice is
+    specified in the register (e.g. "en_GB-northern_english_male-medium"), it
+    reads in that voice. Otherwise it reads in the default voice (Alba)."""
     try:
+        data = {}
         if path.suffix == ".json":
-            data = json.loads(path.read_text(encoding="utf-8-sig"))
-            return (data.get("text", ""), data.get("voice"), 
-                    data.get("source", ""), data.get("engine", "piper"))
-        else:
-            return (path.read_text(encoding="utf-8").strip(), None, "unknown", "piper")
+            try:
+                data = json.loads(path.read_text(encoding="utf-8-sig"))
+            except Exception:
+                data = {}
+        text = str(data.get("text", "")) if data else path.read_text(encoding="utf-8").strip()
+        engine = str(data.get("engine", "piper")) if data else "piper"
+        origin = str(data.get("source", "")).strip() if data else ""
+        voice = str(data.get("voice", "")).strip() if data else ""
+        if not voice and origin.lower().startswith("hermes"):
+            voice = "en_GB-northern_english_male-medium"
+        return (text, voice, origin, engine)
     except Exception as e:
         log(f"Queue read error for {path.name}: {e}")
         return None
@@ -499,6 +524,9 @@ def narration_loop():
                 text, voice, source, engine = result
                 text = filter_text(text)
                 if not text: continue
+                # REGISTER ROUTING (Trent): voice was decided in read_queue_job
+                # from the register INSIDE the file (source/voice fields).
+                # hermes origin -> male. Specified voice wins. Else Alba.
                 sentences = split_sentences(text)
                 log(f"Narrating [{source}]: {len(sentences)} sentences")
                 for s in sentences:
@@ -512,7 +540,7 @@ def narration_loop():
                         state["sub_idx"] = 0
                         state["sub_active"] = True
                         state["sub_play_start"] = 0.0
-                    audio = piper_generate(s)
+                    audio = piper_generate(s, voice)
                     if audio:
                         play_audio(audio[0], audio[1])
                     state["sub_active"] = False

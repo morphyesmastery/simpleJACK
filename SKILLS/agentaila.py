@@ -299,7 +299,7 @@ def send_to_hermes(prompt, timeout=300):
     # Click in the input area (bottom-center of the window)
     # Hermes input is typically in the bottom ~100px
     input_x = left + width // 2
-    input_y = bottom - 60  # ~60px from bottom
+    input_y = bottom - 35  # ~60px from bottom
     send_click(input_x, input_y)
     time.sleep(0.3)
     

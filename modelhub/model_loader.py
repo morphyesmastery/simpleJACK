@@ -59,6 +59,7 @@ import httpx
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, FileResponse
+import urllib.request
 
 # ------------------------------------------------------------------ Paths
 BASE_DIR        = Path(__file__).resolve().parent
@@ -302,7 +303,7 @@ def load_prefs(reg: dict) -> dict:
         merged[k] = bool(merged.get(k, True))
     merged["impose_content_rating"] = bool(merged.get("impose_content_rating", False))
     try:
-        merged["content_rating"] = max(0, min(18, int(merged.get("content_rating", 0))))
+        merged["content_rating"] = max(0, min(5, int(merged.get("content_rating", 0))))
     except Exception:
         merged["content_rating"] = 0
     try:
@@ -331,10 +332,13 @@ def apply_master_prefs(payload: dict, prefs: dict) -> None:
                     f"clarity level exactly for THIS reply.]")
             _inject_system_rule(payload, rule)
     # Content rating (parental control): motion-picture scale, toggle-gated.
+    # 2026-09-10 FIX: dial 1-4 now maps DIRECTLY to the four bands
+    # (1=G/PG, 2=PG-13, 3=R, 4=NC-17). Old math (rating//6+1) made dial 4
+    # mean G/PG and only dial 18 mean NC-17 — nobody's dial did what it said.
     if prefs.get("impose_content_rating", False):
         rating = int(prefs.get("content_rating") or 0)
         if rating >= 1:
-            band, label = RATING_BANDS.get(min(rating // 6 + 1, 4), RATING_BANDS[4])
+            band, label = RATING_BANDS.get(min(rating, 4), RATING_BANDS[4])
             rule = (f"[MorPHYes content rating: {label}. "
                     f"Filter this reply to this rating: {band}.]")
             _inject_system_rule(payload, rule)
@@ -426,9 +430,14 @@ def gpu_busy() -> dict:
 
 async def gpu_gate(provider: str):
     """Hold ollama-bound requests while the GPU is busy. Returns a
-    JSONResponse(429) if patience runs out, else None (clear to go)."""
-    if provider not in ("ollama", "ollama_cloud"):
-        return None
+    JSONResponse(429) if patience runs out, else None (clear to go).
+    DISABLED 2026-09-20 (operator order): this machine's ONLY GPU owner is
+    the operator. Everyday desktop apps (Chrome, Hermes, Signal, Discord)
+    hold VRAM above the 6000MB line at idle, so the guard was permanently
+    tripped — bouncing/aborting every josie request (Elias '(no reply)',
+    WinError 10053 mid-think). Trent's law: NO LIMITS on his own tools.
+    Ollama traffic passes through, always."""
+    return None
     deadline = time.monotonic() + GPU_GUARD_TIMEOUT
     while gpu_busy()["busy"]:
         if time.monotonic() >= deadline:
@@ -1035,7 +1044,7 @@ HTML_PAGE = """<!DOCTYPE html>
     <div class="slidercol" id="col_content">
       <div class="shead"><span class="sname">&#127909; CONTENT RATING &#128118;</span><label class="sw"><input type="checkbox" id="sw_content"><span class="swsl"></span><span class="swtxt">off</span></label></div>
       <div class="ends"><span>uncensored</span><span>NC-17</span></div>
-      <input type="range" id="mp_content" min="0" max="18" step="1" value="0">
+      <input type="range" id="mp_content" min="0" max="5" step="1" value="0">
       <div class="snote">motion-picture filter. off = uncensored.<span class="sval" id="mp_content_lbl" style="float:right;">OFF</span></div>
     </div>
     <div class="slidercol" id="col_gpu">
@@ -1183,12 +1192,12 @@ function wireCard(card){
 function ratingLabel(v){
   v = parseInt(v)||0;
   if(v<=0) return 'OFF';
-  if(v<=6) return 'G/PG';
-  if(v<=12) return 'PG-13';
-  if(v<=16) return 'R';
+  if(v===1) return 'G/PG';
+  if(v===2) return 'PG';
+  if(v===3) return 'PG-13';
+  if(v===4) return 'R';
   return 'NC-17';
 }
-
 function setSliders(prefs){
   const t = document.getElementById('mp_temp'), s = document.getElementById('mp_simp'), r = document.getElementById('mp_rpm'), c = document.getElementById('mp_content');
   const gu = document.getElementById('mp_gpuutil'), gv = document.getElementById('mp_gpuvram');
@@ -1200,9 +1209,15 @@ function setSliders(prefs){
     gu.value = (prefs.gpu_util_max !== undefined) ? prefs.gpu_util_max : 60;
     gv.value = (prefs.gpu_vram_max_mb !== undefined) ? prefs.gpu_vram_max_mb : 6000;
     const cols = {temp:'sw_temp', simp:'sw_simp', rate:'sw_rate', content:'sw_content'};
+    // KEY FIX (2026-09-10): short k -> REAL registry key. Old code read
+    // prefs['impose_simp'] / prefs['impose_content'] which NEVER exist —
+    // the registry stores impose_simple / impose_content_rating. The card
+    // always saw "off" and SAVE wrote that false state back, killing the
+    // switches on every save. This is the switch-murder bug.
+    const realkey = {temp:'impose_temp', simp:'impose_simple', rate:'impose_rate', content:'impose_content_rating'};
     ['temp','simp','rate','content'].forEach(k=>{
       const sw = document.getElementById(cols[k]);
-      sw.checked = !!prefs['impose_'+k];
+      sw.checked = !!prefs[realkey[k]];
       document.getElementById('col_'+k).classList.toggle('off', !sw.checked);
       const txt = sw.parentElement.querySelector('.swtxt');
       if (txt) txt.textContent = sw.checked ? 'imposed' : 'off';
@@ -1238,11 +1253,25 @@ async function savePrefs(){
     col.classList.toggle('off', !e.target.checked);
     const txt = e.target.parentElement.querySelector('.swtxt');
     if (txt) txt.textContent = e.target.checked ? 'imposed' : 'off';
-    const body = { ['impose_'+k]: e.target.checked };
-    await fetch('/api/prefs', {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-    document.getElementById('mp_msg').textContent = e.target.checked
-      ? (k==='content' ? 'content filter imposed - replies filtered to the rating below' : 'imposed - this hub applies it to every app again')
-      : (k==='content' ? 'content filter off - uncensored' : 'off - model keeps its own default. switch back anytime.');
+    const body = { [{temp:'impose_temp',simp:'impose_simple',rate:'impose_rate',content:'impose_content_rating'}[k]]: e.target.checked };
+    // 2026-09-09 (Trent): switch flip = save + CONFIRM. The 5s auto-refresh
+    // (setInterval load) used to snap a just-flipped switch back to the old
+    // registry state if the save raced it — the switch "refused to turn on".
+    // Now: save, wait for the server's answer, then re-sync sliders from
+    // what the server actually stored. The switch obeys the first flip.
+    document.getElementById('mp_msg').textContent = 'saving...';
+    try {
+      const r = await fetch('/api/prefs', {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+      const j = await r.json();
+      if (j.prefs) setSliders(j.prefs);
+      document.getElementById('mp_msg').textContent = j.ok
+        ? (k==='content'
+            ? (e.target.checked ? 'content filter imposed - replies filtered to the rating below' : 'content filter off - uncensored')
+            : (e.target.checked ? 'imposed - this hub applies it to every app again' : 'off - model keeps its own default. switch back anytime.'))
+        : 'save failed';
+    } catch(err) {
+      document.getElementById('mp_msg').textContent = 'save failed - hub unreachable';
+    }
   });
 });
 
@@ -1381,6 +1410,57 @@ def index():
                              'let providers = []; const __BASE__ = ' + json.dumps(base) + ';')
     return page
 
+
+# ── EYES ROUTE (Trent 2026-09-16) — hub-level vision interpreter ─────────────
+# ANY model, vision-capable or not, can hand a screenshot to this endpoint and
+# get a granular text description back. Moondream (local Ollama) does the
+# looking; the calling model receives pure language. The prompt is built FROM
+# the caller's request and pushes moondream to use every token it has, every
+# time, so small-context callers get maximum understanding per call.
+import base64 as _b64
+
+EYES_MODEL = "moondream:latest"
+EYES_PROMPT_HEADER = (
+    "You are the EYES of another AI. Describe the attached screenshot with "
+    "MAXIMUM granularity and detail — exhaust your full response. Cover: (1) "
+    "every visible window/panel and its title, (2) all readable text verbatim "
+    "where legible, (3) layout and spatial relationships, (4) colors of key UI "
+    "elements, (5) anything unusual or noteworthy. Do not summarize. Do not "
+    "stop early. Every token you spend gives the caller more understanding.\n\n"
+    "THE CALLING MODEL SPECIFICALLY ASKS: "
+)
+
+@app.post("/v1/vision/describe")
+async def vision_describe(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "invalid JSON body"}, status_code=400)
+    img_b64 = body.get("image") or ""
+    ask = (body.get("request") or "Describe everything visible.").strip()
+    if not img_b64:
+        return JSONResponse({"error": "missing 'image' (base64)"}, status_code=400)
+    prompt = EYES_PROMPT_HEADER + ask
+    payload = {
+        "model": EYES_MODEL,
+        "messages": [{"role": "user", "content": prompt,
+                      "images": [img_b64]}],
+        "stream": False,
+        "options": {"num_predict": 2048},   # demand maximal output, every time
+    }
+    try:
+        req = urllib.request.Request(
+            "http://127.0.0.1:11434/api/chat",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=300) as r:
+            out = json.loads(r.read().decode("utf-8", "ignore"))
+        text = (out.get("message") or {}).get("content", "")
+        return {"model": EYES_MODEL, "description": text,
+                "eval": out.get("eval", {})}
+    except Exception as e:
+        return JSONResponse({"error": f"eyes failed: {e}"}, status_code=502)
+
 if __name__ == "__main__":
     print("=" * 60)
     print("  MORPHYES MODEL HUB")
@@ -1389,3 +1469,4 @@ if __name__ == "__main__":
     print("  Master Controls: truth | simplicity | rate, applied at source")
     print("=" * 60)
     uvicorn.run(app, host="127.0.0.1", port=8123, log_level="warning")
+
