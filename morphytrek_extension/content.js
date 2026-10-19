@@ -99,16 +99,37 @@ async function sendChunkToQueue(chunkText, sourceName) {
   }
 }
 
-async function narrate(text) {
+async function narrate(text, skipGate) {
   if (!text || text.length < 5) return;
+  
+  // THE TRANSLATOR LANE: every read-aloud passes the language gate.
+  // Off by default; the popup dropdown sets it; failures read the original.
+  // skipGate=true bypasses it (forced English reads, Trent 2026-09-29).
+  if (window.MT_TRANSLATE && !skipGate) {
+    try { text = await window.MT_TRANSLATE.maybeTranslate(text); } catch (_) {}
+  }
   
   const cleaned = cleanText(text);
   if (cleaned === lastSpoken) return;
   lastSpoken = cleaned;
   
-  // SINGLE SEND - no chunking, no limit. The whole selection goes as one narration.
-  chunkCounter++;
-  await sendChunkToQueue(cleaned, `chrome_extension_${chunkCounter}`);
+  const maxChunkSize = 4000;
+  const chunks = [];
+  for (let i = 0; i < cleaned.length; i += maxChunkSize) {
+    chunks.push(cleaned.substring(i, i + maxChunkSize));
+  }
+  
+  if (chunks.length === 1) {
+    chunkCounter++;
+    await sendChunkToQueue(chunks[0], `chrome_extension_${chunkCounter}`);
+    return;
+  }
+  
+  for (let i = 0; i < chunks.length; i++) {
+    chunkCounter++;
+    await sendChunkToQueue(chunks[i], `chrome_extension_${chunkCounter}`);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+  }
 }
 
 function findNewMessages() {
@@ -374,6 +395,12 @@ async function _mtRun(mode) {
     return;
   }
   _mtToast(mode === "articulate" ? "Articulating..." : "Promoting...");
+  // PROMOTE FIX (operator order 2026-10-18, THE ROOT CAUSE): the old line
+  // force-translated EVERY selection to English before promote — English
+  // into English. MyMemory answers that with its own error line "PLEASE
+  // SELECT TWO DISTINCT LANGUAGES" (403), which got accepted, cached, and
+  // rendered as the card body. Promote renders the operator's words AS
+  // THEY ARE. No translation. Ever.
   try {
     const url = mode === "articulate" ? MT_ARTICULATE_URL : MT_PROMOTE_URL;
     const data = await _mtPost(url, { text: text });
@@ -385,14 +412,70 @@ async function _mtRun(mode) {
       if (ok) { _mtToast("Promoted - Ctrl+Z to revert", _mtRevert); return; }
     }
     const done = _mtReplaceSelection(ed, out);
-    if (done) _mtToast(mode === "articulate" ? "Articulated - Ctrl+Z reverts" : "Promoted - Ctrl+Z reverts", _mtRevert);
+    if (done) _mtToast(mode === "articulate" ? "Articulating..." : "Promoting...", _mtRevert);
     else _mtToast("Could not replace text in this field");
   } catch (e) {
-    _mtToast("morPHYtrek bridge offline - is the app running?");
+    _mtBridgeLight(() => _mtRun(mode));
   }
+}
+
+// BRIDGE LIGHT — replaces the "is the app running?" toast (Trent 2026-09-30).
+// A light: red = bridge offline, green = online. Tap it to refresh the
+// check; if the bridge is back the last action retries automatically.
+function _mtBridgeLight(onBackOnline) {
+  const old = document.getElementById("__mt_toast");
+  if (old) old.remove();
+  const d = document.createElement("div");
+  d.id = "__mt_toast";
+  d.style.cssText = "position:fixed;bottom:24px;right:24px;z-index:2147483647;background:#0f2340;color:#ece6d8;padding:10px 16px;border-radius:8px;font:13px Segoe UI,Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.4);display:flex;gap:12px;align-items:center;";
+  const light = document.createElement("span");
+  light.style.cssText = "width:14px;height:14px;border-radius:50%;background:#ef4444;box-shadow:0 0 8px #ef4444;cursor:pointer;flex:none;";
+  const label = document.createElement("span");
+  label.textContent = "Bridge offline — tap the light to refresh";
+  light.onclick = async () => {
+    let ok = false;
+    try { const r = await fetch(MT_ARTICULATE_URL, { method: "OPTIONS" }); ok = r.ok; } catch (_) {}
+    light.style.background = ok ? "#4ade80" : "#ef4444";
+    light.style.boxShadow = "0 0 8px " + (ok ? "#4ade80" : "#ef4444");
+    label.textContent = ok ? "Bridge online" : "Bridge offline — tap the light to refresh";
+    if (ok && onBackOnline) { d.remove(); onBackOnline(); }
+  };
+  d.appendChild(light);
+  d.appendChild(label);
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 12000);
 }
 
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === "ARTICULATE_SELECTION") _mtRun("articulate");
   if (msg.type === "PROMOTE_FIELD") _mtRun("promote");
+  if (msg.type === "TRANSLATE_READ") _mtTranslateRead(msg.text);
 });
+
+// TRANSLATE WITH MORPHYTREK — turn the writing to English and read it
+// aloud (Trent 2026-09-29). Forced English via the MyMemory lane,
+// regardless of the popup dropdown. Failure reads the original.
+// 2026-09-30: the highlighted text on screen is ALSO swapped for the
+// English — written and spoken in one step, no Google two-step.
+async function _mtTranslateRead(text) {
+  if (!text || text.trim().length < 2) return;
+  let out = text;
+  if (window.MT_TRANSLATE) {
+    try { out = await window.MT_TRANSLATE.forceTranslate(text, "en"); }
+    catch (_) { out = text; /* SCREEN SWAP GUARD (2026-10-18): on translation
+                 failure the original text is kept — the old code appended
+                 "Translation unavailable" AND swapped it into the page,
+                 replacing the operator's highlighted words with an error
+                 message. Read the original; change nothing on screen. */ }
+  }
+  try {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(document.createTextNode(out));
+    }
+  } catch (_) {}
+  lastSpoken = ""; // forced read: never dedup against what was just spoken
+  await narrate(out, true);
+}
