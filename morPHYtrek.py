@@ -72,6 +72,47 @@ PIPER_DIRS = [
 PIPER_VOICE_FILE = CONFIG_DIR / "piper_voice.txt"
 PIPER_EXE = _APP_ROOT / "piper" / "piper.exe"
 
+# ── VOICE REGISTER — ONE TABLE, WHO IS TALKING (Trent's design) ──────────────
+# Every narration file carries a REGISTER: its "source". The mouth looks the
+# source up HERE and reads that file in that app's own voice, so the operator
+# knows BY EAR which program is speaking. Add one line to give a new app a
+# voice — nothing else in this file has to change. A "voice" field written
+# inside the narration file always wins over this table.
+VOICE_REGISTER = {
+    "hermes":    "en_GB-northern_english_male-medium",  # AILA — this machine's agent
+    # 2026-09-21: the "aila" alias to the northern male voice is REMOVED.
+    # LAW 1 (SOUL.md / AGENTS.md): ONLY source "hermes" reads in the northern
+    # male register — "aila", no source, or no voice reads in the default Alba.
+    # simplejack.py writes every one of its own utterances as source "aila"
+    # (portable/simplejack.py line ~426), so aliasing aila to hermes made the
+    # SimpleJack app itself read in the English male voice. Removed. AILA's own
+    # replies carry source "hermes", so AILA keeps her voice; SimpleJack gets
+    # its own back.
+    "racme":     "en_US-ryan-high",                     # RACMe — the trades tutor
+    "elias":     "en_GB-jenny_dioco-medium",            # ELIAS — the lessons tutor
+    "zcode":     "en_US-amy-medium",                    # ZCode — the coding face
+    "morphtrek": "en_GB-alba-medium",                   # morPHYtrek itself
+}
+DEFAULT_VOICE = "en_GB-alba-medium"
+
+
+def voice_for_register(origin, filename=""):
+    """REGISTER ROUTING (Trent). Map a narration file's source to its voice.
+
+    source field wins; if the file has no source, the filename's first token is
+    used (a file named hermes_*.json is AILA's). No match -> "" and the caller
+    falls through to the default voice. One table decides. Nothing else.
+    """
+    key = str(origin or "").strip().lower()
+    if not key and filename:
+        key = str(filename).split("_")[0].strip().lower()
+    if not key:
+        return ""
+    for name, voice in VOICE_REGISTER.items():
+        if key.startswith(name):
+            return voice
+    return ""
+
 HEARTBEAT_FILE = CONFIG_DIR / "morPHYtrek_heartbeat.json"
 STATUS_FILE    = LIB / "morPHYtrek_status.json"
 
@@ -97,6 +138,17 @@ import sounddevice as sd
 from faster_whisper import WhisperModel
 import pyperclip
 import pyautogui
+
+# ════════════════════════════════════════════════════════════
+#  CLIPBOARD LOCK (operator order 2026-10-18, THE REAL FIX):
+#  Two robots share ONE clipboard — the e-reader capture (Ctrl+C) and the
+#  dictation paste (Ctrl+V). When both fire in the same moment, the paste
+#  can carry SCREEN text the capture just grabbed — caps placeholder text
+#  included — and Ctrl+V over a selection REPLACES the operator's words.
+#  Every clipboard read/write/copy/paste inside morPHYtrek now takes this
+#  lock so the robots take turns. NEVER touch the clipboard without it.
+# ════════════════════════════════════════════════════════════
+_CLIP_LOCK = threading.RLock()
 pyautogui.FAILSAFE = False
 pyautogui.PAUSE = 0.02
 from pynput import keyboard as kb
@@ -138,7 +190,7 @@ state = {
     "narrating": False,      # True while Piper is speaking
     "listening": True,       # True when ear is open
     "alive": True,
-    "ereader_on": False,     # OFF by default - toggle with book button
+    "ereader_on": True,     # ALWAYS ON with morPHYtrek (operator order 2026-10-16). Abort button handles 'too much'.
     # RSVP subtitle state
     "sub_words": [],         # list of words in current sentence
     "sub_idx": 0,            # current word index for RSVP display
@@ -147,6 +199,12 @@ state = {
     "sub_audio_dur": 0.0,    # duration of the current audio in seconds
     "wpm": 200,              # display + voice speed — DEFAULT 200 (spec)
     "wpm_natural": 210,      # Alba natural rate measured 2026-08-02 @ length-scale 1.0
+    # REFRESH = ABORT (operator order 2026-10-15): the refresh button now
+    # aborts the narration currently being read and deletes its queue file.
+    "current_narration_file": None,  # path of the job being spoken right now
+    "abort_narration": False,        # set True by refresh() to stop mid-read
+    "active_stream": None,           # live sounddevice OutputStream (for abort)
+    "active_proc": None,             # live Piper process (for abort)
 }
 
 audio_buffer   = []
@@ -262,8 +320,37 @@ def init_whisper():
 def transcribe(audio_np):
     if not whisper_model: return ""
     try:
-        segs, _ = whisper_model.transcribe(audio_np, language="en", vad_filter=True)
-        return " ".join(s.text.strip() for s in segs).strip()
+        # WHISPER HALLUCINATION GUARD (operator order 2026-10-18, THE FIX):
+        # large-v3-turbo invents its famous placeholder lines —
+        # "Please select two distinct languages." — on silence/noise, and
+        # paste() then REPLACED the operator's highlighted words with them.
+        # Three model-level gates kill it at the source:
+        #   condition_on_previous_text=False → one hallucination can no
+        #     longer seed the next (that contagion is how the phrase repeated 3x);
+        #   no_speech_threshold=0.6 → mostly-silence segments refused;
+        #   log_prob_threshold=-1.0 → low-confidence guesses refused.
+        segs, _ = whisper_model.transcribe(
+            audio_np, language="en", vad_filter=True,
+            condition_on_previous_text=False,
+            no_speech_threshold=0.6,
+            log_prob_threshold=-1.0,
+        )
+        out = []
+        for s in segs:
+            # Per-segment belt: the same junk family, refused even when a
+            # segment sneaks past the model-level thresholds.
+            if getattr(s, "no_speech_prob", 0.0) > 0.6:
+                continue
+            if getattr(s, "avg_logprob", 0.0) < -1.0:
+                continue
+            t = s.text.strip()
+            if not t:
+                continue
+            if re.search(r"(?i)please\s+select\s+(?:two\s+)?(?:distinct\s+)?languages?\b|^\s*select\s+(?:a\s+)?language\b", t):
+                log(f"Whisper junk dropped: {t[:60]}")
+                continue
+            out.append(t)
+        return " ".join(out).strip()
     except Exception as e:
         log(f"Transcribe error: {e}")
         return ""
@@ -287,6 +374,15 @@ def track_focus():
 
 def paste(text):
     try:
+        # HALLUCINATION BELT (operator order 2026-10-18): nothing Whisper
+        # invented may ever reach the keyboard. Scrub junk speech first;
+        # if nothing real remains, do NOT fire Ctrl+V — pasting junk (or
+        # an empty string) is exactly what replaced the operator's
+        # highlighted words with the language placeholder.
+        text = scrub_junk_speech(text)
+        if not text:
+            log("Paste skipped: only junk speech remained")
+            return
         # Restore focus to the target window before pasting
         global _last_target_window
         if WIN32 and _last_target_window:
@@ -299,22 +395,23 @@ def paste(text):
                     time.sleep(0.05)
             except Exception as e:
                 log(f"Focus restore: {e}")
-        saved = pyperclip.paste()          # save what's on the clipboard now
-        pyperclip.copy(text + " ")
-        time.sleep(0.05)
-        # VERIFY the words actually landed on the clipboard before sending Ctrl+V.
-        # If the copy lost the race, retry up to 3 times — never fire Ctrl+V blind.
-        for _ in range(3):
-            if pyperclip.paste() == text + " ":
-                break
-            time.sleep(0.05)
+        with _CLIP_LOCK:
+            saved = pyperclip.paste()          # save what's on the clipboard now
             pyperclip.copy(text + " ")
-        pyautogui.hotkey("ctrl", "v")
-        # Give the target app time to process the paste BEFORE restoring the old
-        # clipboard — slow apps (Electron/Hermes, Word) read the restored old
-        # content otherwise. 500ms covers even slow IPC hops.
-        time.sleep(0.5)
-        pyperclip.copy(saved)              # restore so e-reader doesn't lose it
+            time.sleep(0.05)
+            # VERIFY the words actually landed on the clipboard before sending Ctrl+V.
+            # If the copy lost the race, retry up to 3 times — never fire Ctrl+V blind.
+            for _ in range(3):
+                if pyperclip.paste() == text + " ":
+                    break
+                time.sleep(0.05)
+                pyperclip.copy(text + " ")
+            pyautogui.hotkey("ctrl", "v")
+            # Give the target app time to process the paste BEFORE restoring the old
+            # clipboard — slow apps (Electron/Hermes, Word) read the restored old
+            # content otherwise. 500ms covers even slow IPC hops.
+            time.sleep(0.5)
+            pyperclip.copy(saved)              # restore so e-reader doesn't lose it
     except Exception as e:
         log(f"Paste error: {e}")
 
@@ -436,6 +533,168 @@ def play_audio(audio_data, sr):
         state["listening"] = not state["muted"]
         update_gui()
 
+# ── STREAMING VOICE (2026-09-21) ─────────────────────────────
+# Operator report: "MASSIVE VOICE BREAKS BETWEEN SENTENCES, IT WAS ALL
+# STREAMING AND EFFECTIVE BEFORE."  Cause: one Piper process PER SENTENCE —
+# every sentence reloaded the 63 MB voice model, so audio stalled ~1-3 s
+# between every sentence. Fix: ONE Piper process per job, raw PCM streamed
+# straight to the speakers as it is synthesised. First word out in a few
+# hundred milliseconds, zero gaps, subtitle clock starts on the first frame.
+
+def _voice_sample_rate(model):
+    """Read the voice's true sample rate from its sidecar config."""
+    try:
+        cfg = Path(str(model) + ".json")
+        if cfg.exists():
+            j = json.loads(cfg.read_text(encoding="utf-8"))
+            sr = int((j.get("audio") or {}).get("sample_rate") or 0)
+            if sr:
+                return sr
+    except Exception:
+        pass
+    return 22050
+
+def scrub_junk_speech(text):
+    """JUNK SPEECH FILTER (operator order 2026-10-18, FINAL): the mouth NEVER
+    says 'select a language' / 'please select two distinct languages' again.
+    Those phrases leaked in through clipboard read-aloud capturing a language
+    app's own UI placeholder. Two tiers: the 'please select' form is ALWAYS
+    junk (UI instruction, strips even when glued like MasteryPlease select);
+    bare 'select a language' strips only at sentence starts or glued
+    boundaries, so legitimate prose like 'select a language model' survives."""
+    if not text:
+        return text
+    text = re.sub(r"(?i)please\s+select\s+(?:two\s+)?(?:distinct\s+)?languages?\b[^.!?]*[.!?]?", " ", text)
+    text = re.sub(r"(?i)(?:^|(?<=[.!?]\s)|(?<=[A-Za-z]))select\s+(?:a\s+)?language\b[^.!?]*[.!?]?", " ", text)
+    return re.sub(r"\s{2,}", " ", text).strip()
+
+def piper_open(text, voice=None):
+    """Spawn ONE Piper process for the whole text. Returns (proc, sample_rate)."""
+    text = scrub_junk_speech(text)
+    if not text:
+        log("Speech refused: junk phrase only (select-language filter)")
+        return (None, 0)
+    model = get_piper_model(voice)
+    if not model:
+        log("No Piper model found")
+        return (None, 0)
+    env = _piper_clean_env()
+    target_wpm = int(state.get("wpm", 200))
+    target_wpm = max(100, min(1000, target_wpm))
+    natural_wpm = float(state.get("wpm_natural", 210))
+    length_scale = natural_wpm / target_wpm
+    try:
+        if PIPER_EXE.exists():
+            cmd = [str(PIPER_EXE), "--model", str(model), "--output-raw",
+                   "--length-scale", f"{length_scale:.3f}"]
+        else:
+            cmd = [str(MORPHYVENV_PYTHON), "-m", "piper", "--model", str(model),
+                   "--output-raw", "--length-scale", f"{length_scale:.3f}"]
+        proc = subprocess.Popen(
+            cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, env=env,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        try:
+            proc.stdin.write(text.encode("utf-8"))
+            proc.stdin.close()
+        except Exception:
+            pass
+        return (proc, _voice_sample_rate(model))
+    except Exception as e:
+        log(f"Piper error: {e}")
+        return (None, 0)
+
+def speak_stream(text, voice=None):
+    """Speak the whole text through ONE Piper process, streamed to the speakers.
+    Returns True if any audio played."""
+    proc, sr = piper_open(text, voice)
+    if not proc:
+        return False
+    played = False
+    frames = 0
+    stream = None
+    state["active_proc"] = proc
+    state["narrating"] = True
+    state["listening"] = False
+    try:
+        words = text.strip().upper().split()
+        state["sub_words"] = words
+        state["sub_idx"] = 0
+        state["sub_active"] = True
+        state["sub_play_start"] = 0.0
+        state["sub_audio_dur"] = 0.0
+        update_gui()
+        # SUBTITLE SYNC (repair 2026-09-29): the old code timed the subtitles
+        # from a WPM estimate while the real audio ran at its own speed — the
+        # words ran ahead of the voice. Fix: buffer the full PCM first, then
+        # time the subtitles from the REAL sample count — the same clock
+        # play_audio uses. Words land exactly when the voice says them.
+        chunks = []
+        while True:
+            chunk = proc.stdout.read(8192)
+            if not chunk:
+                break
+            if len(chunk) % 2:
+                chunk = chunk[:-1]
+            if not chunk:
+                continue
+            chunks.append(chunk)
+        if not chunks:
+            return False
+        audio = np.frombuffer(b"".join(chunks), dtype=np.int16).astype(np.float32) / 32768.0
+        state["sub_play_start"] = time.monotonic()
+        state["sub_audio_dur"] = (len(audio) / float(sr)) if sr else 0.0
+        update_gui()
+        stream = sd.OutputStream(samplerate=sr, channels=1, dtype="float32")
+        stream.start()
+        state["active_stream"] = stream
+        # ABORT-AWARE PLAYBACK (operator order 2026-10-15): write in ~0.25 s
+        # blocks and check the abort flag between them, so the refresh button
+        # stops the voice mid-sentence instead of waiting for the whole job.
+        block = max(1, int(sr * 0.25))
+        for i in range(0, len(audio), block):
+            if state.get("abort_narration"):
+                log("Narration ABORTED by refresh")
+                break
+            stream.write(audio[i:i + block])
+        played = True
+        time.sleep(0.25)  # let the hardware buffer drain before closing
+        return played
+    except Exception as e:
+        log(f"Stream playback error: {e}")
+        return played
+    finally:
+        state["active_stream"] = None
+        state["active_proc"] = None
+        try:
+            if stream is not None:
+                stream.stop()
+                stream.close()
+        except Exception:
+            pass
+        try:
+            proc.stdout.close()
+            proc.wait(timeout=5)
+        except Exception:
+            pass
+        state["narrating"] = False
+        state["listening"] = not state["muted"]
+        update_gui()
+
+def _speak_chunks(sentences, limit=900):
+    """Group sentences into jobs that hold ONE Piper model load each."""
+    out, buf = [], ""
+    for s in sentences:
+        if buf and len(buf) + len(s) + 1 > limit:
+            out.append(buf)
+            buf = s
+        else:
+            buf = (buf + " " + s).strip()
+    if buf:
+        out.append(buf)
+    return out
+
 # ════════════════════════════════════════════════════════════
 #  NARRATION QUEUE PROCESSOR
 # ════════════════════════════════════════════════════════════
@@ -452,7 +711,28 @@ def filter_text(text):
     text = re.sub(r'[#`*_~^]', '', text)
     text = re.sub(r'\n+', '. ', text)
     text = re.sub(r'\s+', ' ', text).strip()
-    return text
+    # ── SIMPLEJACK SANITIZER (operator order 2026-10-16): the ears contract,
+    # from simplejack.py.bak_20260721_130505. Applied to EVERY queue job so
+    # ereader reads sound exactly like every other narration.
+    # Windows/Unix paths → "the file"
+    text = re.sub(r'[A-Za-z]:\\[^\s"\'<>|]*', 'the file', text)
+    text = re.sub(r'(?:/[\w.-]+){2,}/?', 'the file', text)
+    # code blocks / inline code leftovers
+    text = re.sub(r'\{[^{}]*\}', ' ', text)
+    text = re.sub(r'[\[\]{}()<>|]', ' ', text)
+    # arrows → "then"
+    text = re.sub(r'(?:->|=>|\u2192|\u21d2)', ' then ', text)
+    # dashes used as separators → "then"
+    text = re.sub(r'\s[-\u2013\u2014]\s', ' then ', text)
+    # "hashtag" spoken as "pound" is wrong; strip the word entirely
+    text = re.sub(r'\bhashtag\b', '', text, flags=re.IGNORECASE)
+    # collapse whitespace and "then then then" chains
+    text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r'(?:\bthen\b\s*){2,}', 'then ', text, flags=re.IGNORECASE)
+    # JUNK SPEECH FILTER (operator order 2026-10-18): the mouth never says
+    # 'select a language' variants — stripped from every queue job, forever.
+    text = scrub_junk_speech(text)
+    return text.strip()
 
 def split_sentences(text):
     parts = re.split(r'(?<=[.!?])\s+', text)
@@ -475,8 +755,11 @@ def read_queue_job(path):
         engine = str(data.get("engine", "piper")) if data else "piper"
         origin = str(data.get("source", "")).strip() if data else ""
         voice = str(data.get("voice", "")).strip() if data else ""
-        if not voice and origin.lower().startswith("hermes"):
-            voice = "en_GB-northern_english_male-medium"
+        # REGISTER ROUTING (Trent): the register INSIDE the file says who is
+        # talking; VOICE_REGISTER says what that app sounds like. An explicit
+        # "voice" field still wins. No register match -> default voice (Alba).
+        if not voice:
+            voice = voice_for_register(origin, path.name)
         return (text, voice, origin, engine)
     except Exception as e:
         log(f"Queue read error for {path.name}: {e}")
@@ -516,36 +799,55 @@ def narration_loop():
                 if path.name.lower() in ("folder.md",):
                     continue
                 result = read_queue_job(path)
-                try:
-                    path.unlink()
-                except Exception:
-                    pass
-                if not result: continue
+                if not result:
+                    try:
+                        path.unlink()
+                    except Exception:
+                        pass
+                    continue
                 text, voice, source, engine = result
                 text = filter_text(text)
-                if not text: continue
-                # REGISTER ROUTING (Trent): voice was decided in read_queue_job
-                # from the register INSIDE the file (source/voice fields).
-                # hermes origin -> male. Specified voice wins. Else Alba.
-                sentences = split_sentences(text)
-                log(f"Narrating [{source}]: {len(sentences)} sentences")
-                for s in sentences:
-                    if not state["alive"]: break
-                    # Set RSVP subtitle words BEFORE generating — the cell is
-                    # ready, but the words only start cycling when audio actually
-                    # plays (sub_play_start). Kills the turbo-spit.
-                    words = s.strip().upper().split()
-                    if words:
-                        state["sub_words"] = words
-                        state["sub_idx"] = 0
-                        state["sub_active"] = True
+                if not text:
+                    try:
+                        path.unlink()
+                    except Exception:
+                        pass
+                    continue
+                # REFRESH = ABORT (operator order 2026-10-15): the file being
+                # read is tracked here so the refresh button can abort the voice
+                # and delete it. The file is removed in the finally below, so a
+                # crash can never leave a job looping forever.
+                state["current_narration_file"] = str(path)
+                state["abort_narration"] = False
+                try:
+                    # REGISTER ROUTING (Trent): voice was decided in read_queue_job
+                    # from the register INSIDE the file (source/voice fields).
+                    # hermes origin -> male. Specified voice wins. Else Alba.
+                    sentences = split_sentences(text)
+                    log(f"Narrating [{source}]: {len(sentences)} sentences")
+                    # 2026-09-21: ONE Piper process per chunk, streamed to the
+                    # speakers — no per-sentence model reloads, no gaps. Falls back
+                    # to the old per-sentence path only if streaming yields nothing.
+                    for chunk in _speak_chunks(sentences):
+                        if not state["alive"]: break
+                        if state.get("abort_narration"): break
+                        if not speak_stream(chunk, voice):
+                            for s in split_sentences(chunk):
+                                if not state["alive"]: break
+                                if state.get("abort_narration"): break
+                                audio = piper_generate(s, voice)
+                                if audio:
+                                    play_audio(audio[0], audio[1])
+                        state["sub_active"] = False
+                        state["sub_words"] = []
                         state["sub_play_start"] = 0.0
-                    audio = piper_generate(s, voice)
-                    if audio:
-                        play_audio(audio[0], audio[1])
-                    state["sub_active"] = False
-                    state["sub_words"] = []
-                    state["sub_play_start"] = 0.0
+                finally:
+                    state["current_narration_file"] = None
+                    state["abort_narration"] = False
+                    try:
+                        path.unlink()
+                    except Exception:
+                        pass
             time.sleep(0.4)
         except Exception as e:
             log(f"Narration loop error: {e}")
@@ -640,24 +942,89 @@ def flush_watchdog():
 # ════════════════════════════════════════════════════════════
 #  E-READER: Highlighted text → narration
 # ════════════════════════════════════════════════════════════
+def _mouse_left_down():
+    """TRUE QUERY (operator order 2026-10-16): does the user currently hold
+    the left mouse button? Windows GetAsyncKeyState — presses NOTHING.
+    pyautogui.mouseDown() PRESSES the button; that bug glued the widget to
+    the cursor. This replaces it."""
+    try:
+        import ctypes
+        VK_LBUTTON = 0x01
+        return bool(ctypes.windll.user32.GetAsyncKeyState(VK_LBUTTON) & 0x8000)
+    except Exception:
+        return False
+
 def ereader_loop():
     """When text is highlighted, copy it to transcript and narrate.
-    Version 1 - the one that worked.
-    When toggled OFF, the loop sleeps long and does NOT touch clipboard at all."""
+    Version 3 (operator order 2026-10-16):
+    - ALWAYS ON when morPHYtrek is on. No toggle. The abort button handles
+      'too much'.
+    - Wait for the mouse button to be RELEASED, then 1 full second of
+      mouse-idle, THEN read. No more partial reads mid-drag.
+    - No length cap. The whole selection reads.
+    - Audio is regular morPHYtrek JSON per chunk — the mouth already chunks
+      at 900 chars and applies the SimpleJack filter to every job."""
     last_clip = ""
+    prev_down = False
     while state["alive"]:
-        if not state["ereader_on"]:
-            time.sleep(5)  # When OFF, sleep and do NOTHING with clipboard
+        if not state.get("ereader_on", True):
+            time.sleep(5)
             continue
-        time.sleep(2)
+        time.sleep(0.1)
         try:
+            # ONLY act on a real drag: mouse was down last tick and is up now.
+            # This is what preserves normal copy/cut/paste — with no drag there
+            # is NO Ctrl+C fired at all, so the user's clipboard is never touched.
+            down = _mouse_left_down()
+            dragged = prev_down and not down
+            prev_down = down
+            if not dragged:
+                continue
+            # Drag finished. Wait 2 full seconds of mouse-idle before firing
+            # Ctrl+C (operator order 2026-10-17: 2s, was 1s). A new drag in the
+            # window cancels the read.
+            stable = False
+            for _ in range(8):   # 8 x 0.25s = 2 full seconds of mouse-idle
+                time.sleep(0.25)
+                if _mouse_left_down():
+                    stable = False
+                    break
+                stable = True
+            if not stable:
+                continue
             current = pyperclip.paste()
             pyautogui.hotkey("ctrl", "c")
-            time.sleep(0.1)
+            time.sleep(0.15)
             selected = pyperclip.paste()
-            if selected != current:
+            # Restore the user's clipboard ONLY if we are still the last writer.
+            # If the user copied/cut something in our 0.15s window, their content
+            # wins — we never clobber a real copy.
+            if selected != current and pyperclip.paste() == selected:
                 pyperclip.copy(current)
             if selected and selected != current and selected != last_clip and len(selected) > 10:
+                # JUNK SELECTION GUARD (operator order 2026-10-18): the mouth
+                # never speaks language-app UI placeholders. Drop the capture
+                # here so the junk never reaches the queue at all.
+                if re.search(r"(?i)select\s+(?:a\s+)?language|please\s+select\s+(?:two\s+)?(?:distinct\s+)?languages?\b", selected):
+                    last_clip = selected
+                    log("E-reader: junk selection dropped (select-language placeholder)")
+                    continue
+                # LOOP GUARD (operator order 2026-10-16): if the foreground
+                # window is the ReadPlayer drawer (Edge app window titled
+                # "MorPHYes Read Player"), do NOT queue — that is the reader
+                # narrating its own text through the highlight reader. The
+                # reader speaks through the bridge itself.
+                try:
+                    if WIN32:
+                        import win32gui as _w32g
+                        _fg = _w32g.GetForegroundWindow()
+                        _fg_title = _w32g.GetWindowText(_fg) or ""
+                        if "Read Player" in _fg_title or "MorPHYes Read" in _fg_title:
+                            last_clip = selected  # remember so we don't recheck
+                            log("E-reader: skipped reader window self-read")
+                            continue
+                except Exception:
+                    pass
                 last_clip = selected
                 with lock:
                     session_text.append(f"[READ ALOUD] {selected}")
@@ -665,7 +1032,7 @@ def ereader_loop():
                 ts = int(time.time() * 1000)
                 queue_file = QUEUE_DIR / f"ereader_{ts}.json"
                 queue_file.write_text(json.dumps(
-                    {"text": selected[:50000], "source": "ereader", "engine": "piper"}
+                    {"text": selected, "source": "ereader", "engine": "piper"}
                 ), encoding="utf-8")
                 log(f"E-reader: queued {len(selected)} chars")
         except Exception:
@@ -832,7 +1199,7 @@ class MorPHYtrekGUI:
                                      width=3, cursor="hand2", takefocus=0)
         self.refresh_btn.pack(side=tk.LEFT, padx=1)
 
-        self.ereader_btn = tk.Button(self.btn_frame, text="\U0001f4d6", command=self.toggle_ereader,
+        self.ereader_btn = tk.Button(self.btn_frame, text="\U0001f4d6", command=self.toggle_reader_drawer,
                                       bg="#1a1d28", fg="#7ac043", bd=0, font=("Segoe UI", 9),
                                       width=3, cursor="hand2", takefocus=0)
         self.ereader_btn.pack(side=tk.LEFT, padx=1)
@@ -1078,14 +1445,93 @@ class MorPHYtrekGUI:
         self.root.geometry(f"+{x}+{y}")
 
     def refresh(self):
-        log("Refresh button pressed")
+        """REFRESH = ABORT (operator order 2026-10-15).
+        Aborts the narration currently being read and deletes its queue file.
+        If nothing is narrating, falls back to the old self-heal (whisper init)."""
+        if state.get("narrating") or state.get("current_narration_file"):
+            state["abort_narration"] = True
+            log("Refresh pressed — ABORTING current narration")
+            # 1. stop the speaker stream immediately
+            try:
+                sd.stop()
+            except Exception:
+                pass
+            st = state.get("active_stream")
+            if st is not None:
+                try:
+                    st.abort()
+                except Exception:
+                    pass
+            # 2. kill the live Piper process so it stops synthesising
+            pr = state.get("active_proc")
+            if pr is not None:
+                try:
+                    pr.kill()
+                except Exception:
+                    pass
+            # 3. delete the queue file being read
+            cur = state.get("current_narration_file")
+            if cur:
+                try:
+                    Path(cur).unlink()
+                    log(f"Refresh deleted queue file: {Path(cur).name}")
+                except Exception as e:
+                    log(f"Refresh could not delete {cur}: {e}")
+            return
+        log("Refresh button pressed (nothing narrating)")
         if not whisper_model:
             init_whisper()
 
     def toggle_ereader(self):
-        state["ereader_on"] = not state["ereader_on"]
-        self.ereader_btn.config(fg="#7ac043" if state["ereader_on"] else "#555555")
-        log(f"E-reader {'ON' if state['ereader_on'] else 'OFF'}")
+        # Kept for compatibility — ereader is ALWAYS ON now (operator order
+        # 2026-10-16). The abort button handles 'too much'.
+        state["ereader_on"] = True
+        log("E-reader: always on with morPHYtrek (abort button stops any read)")
+
+    def toggle_reader_drawer(self):
+        """READER DRAWER (operator order 2026-10-16):
+        Book icon opens the branded ReadPlayer v3 in a borderless Edge app
+        window anchored directly below the widget. Click again to close it.
+        Pure automation, no model."""
+        # ── CLOSE PATH ──
+        proc = getattr(self, "reader_proc", None)
+        if proc is not None:
+            try:
+                proc.terminate()
+            except Exception:
+                pass
+            self.reader_proc = None
+            log("Reader drawer CLOSED")
+            return
+        # ── OPEN PATH ──
+        reader_url = (_APP_ROOT / "reader" / "ReadPlayer_v3.html").as_uri()
+        W, H = 960, 560
+        x = self.root.winfo_x() + (self.root.winfo_width() - W) // 2
+        max_x = self.root.winfo_screenwidth() - W - 8
+        x = max(8, min(x, max_x))
+        y = self.root.winfo_y() + self.root.winfo_height() + 8
+        max_y = self.root.winfo_screenheight() - H - 60
+        y = max(8, min(y, max_y))
+        try:
+            import subprocess
+            edge = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+            if not Path(edge).exists():
+                edge = r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"
+            if Path(edge).exists():
+                self.reader_proc = subprocess.Popen([
+                    edge,
+                    f"--app={reader_url}",
+                    f"--window-size={W},{H}",
+                    f"--window-position={x},{y}",
+                ])
+                log(f"Reader drawer OPENED (Edge app window at {x},{y})")
+                return
+        except Exception as e:
+            log(f"Reader drawer Edge path failed: {e}")
+        # Fallback: default browser (no close tracking possible)
+        import webbrowser
+        webbrowser.open(reader_url)
+        log("Reader drawer OPENED (default browser — close it by hand)")
 
     def update(self):
         if not self.root: return
@@ -1223,6 +1669,11 @@ class _ExtHandler(BaseHTTPRequestHandler):
         if path == "/api/health":
             self._send_json({"status": "alive", "service": "morPHYtrek"})
             return
+        if path == "/api/brand_colors":
+            # PROMOTE CARD COLORS (operator 2026-10-18): popup control room
+            # reads what promote currently renders. Law colors are the floor.
+            self._send_json(_promote_colors())
+            return
         self._send_json({"error": "not found"}, 404)
 
     def do_POST(self):
@@ -1243,19 +1694,53 @@ class _ExtHandler(BaseHTTPRequestHandler):
             else:
                 self._send_json({"error": "no text"}, 400)
             return
-        if path in ("/api/articulate", "/api/promote"):
+        if path == "/api/brand_colors":
+            # PROMOTE CARD COLORS (operator 2026-10-18): the popup control
+            # room POSTS {bg, action, rust}. Saved to the overlay file and
+            # used by _mt_promote on the very next card. No keys, no cloud.
+            body = self._read_body()
+            c = _set_promote_colors(body.get("bg"), body.get("action"), body.get("rust"))
+            log(f"Promote colors set: bg={c['bg']} action={c['action']} rust={c['rust']}")
+            self._send_json({"success": True, **c})
+            return
+        if path in ("/api/articulate", "/api/promote", "/api/reimagine"):
             body = self._read_body()
             raw_text = body.get("text", "")
             if not raw_text:
                 self._send_json({"error": "no text"}, 400)
                 return
             try:
-                cleaned = _mt_clean(raw_text.strip())
-                if path == "/api/articulate":
-                    self._send_json({"success": True, "text": cleaned})
-                else:
-                    md, html = _mt_promote(cleaned)
+                # PROMOTE (operator order 2026-10-16): promote renders the
+                # branded HTML + footer from the text AS-IS. NO model call —
+                # the old code ran _mt_clean() first, which needs Josie; when
+                # Josie wasn't loaded the endpoint hung and the extension
+                # reported "bridge offline" / returned the identical text.
+                # Promote's job is the beautiful HTML with the footer, every
+                # time, instantly, on any machine — model or no model.
+                if path == "/api/promote":
+                    src = raw_text.strip()
+                    # PROMOTE BODY GUARD (operator order 2026-10-18): a footer
+                    # with no body is a FAILURE, never a card. It happens when
+                    # the selection came through empty (hidden field, image,
+                    # whitespace). Refuse loudly so the operator hears why.
+                    if not src or not re.search(r"[A-Za-z0-9]", src):
+                        self._send_json({"success": False,
+                                         "error": "no body text reached promote — select the words first"}, 400)
+                        return
+                    md, html = _mt_promote(src)
                     self._send_json({"success": True, "md": md, "html": html})
+                elif path == "/api/reimagine":
+                    # REIMAGINE (operator order 2026-10-16): the one feature
+                    # that truly needs a language model. In the sale build it
+                    # is the upgrade door — small notification, no hang, no
+                    # silent fallback, no model shipped.
+                    self._send_json({"success": False,
+                                     "error": "requires upgrade",
+                                     "upgrade": True}, 200)
+                else:
+                    cleaned = _mt_clean(raw_text.strip())
+                    if path == "/api/articulate":
+                        self._send_json({"success": True, "text": cleaned})
             except Exception as e:
                 self._send_json({"error": str(e)}, 503)
             return
@@ -1271,7 +1756,9 @@ class _ExtHandler(BaseHTTPRequestHandler):
 # Local Josie answers in ~1s on this machine (live-verified). LOCAL IS PRIMARY.
 # OpenRouter stays ONLY as fallback for the rare case Ollama is down.
 _MT_OL_URL = "http://127.0.0.1:11434/api/chat"
-_MT_OL_MODELS = ("josie-4b-tools:latest", "josie-2b-tools:latest")
+# MODEL ORDER (operator order 2026-10-16): 2b EVERY TIME — smallest, fastest,
+# loads in seconds. 4b and 9b-tools stay as fallbacks only if 2b is missing.
+_MT_OL_MODELS = ("josie-2b-tools:latest", "josie-4b-tools:latest", "josie-9b-tools:latest")
 _MT_OR_URL = "https://openrouter.ai/api/v1/chat/completions"
 _MT_OR_KEY = os.environ.get("OPENROUTER_API_KEY", "")  # BYO: no key ships; buyer sets their own
 _MT_OR_MODEL = "google/gemma-4-31b-it:free"
@@ -1293,18 +1780,19 @@ def _mt_decaps(t):
 
 def _mt_ol_call(sys_p, user_t, temp):
     """LOCAL FIRST (2026-09-03): Josie via Ollama — offline, sovereign, ~1s.
-    think:false — reasoning would eat num_predict and leave content empty."""
+    NO CAP, NO TIMER (2026-09-22): the model decides when it is done. The old
+    num_predict 800 was an agent-written budget, not a property of the model."""
     import urllib.request as _ur
     last_err = None
     for model in _MT_OL_MODELS:
         try:
             payload = json.dumps({"model": model, "stream": False, "think": False,
-                                  "options": {"temperature": temp, "num_predict": 800, "num_ctx": 8192},
+                                  "options": {"temperature": temp, "num_ctx": 8192},
                                   "messages": [{"role": "system", "content": sys_p},
                                                {"role": "user", "content": user_t}]})
             req = _ur.Request(_MT_OL_URL, data=payload.encode("utf-8"),
                               headers={"Content-Type": "application/json"}, method="POST")
-            with _ur.urlopen(req, timeout=120) as r:
+            with _ur.urlopen(req, timeout=None) as r:   # NO TIMER (2026-09-22) — local model reply
                 data = json.loads(r.read().decode("utf-8"))
             msg = (data.get("messages") or [{}])[-1]
             out = (data.get("message", {}) or {}).get("content", "") or msg.get("content", "")
@@ -1333,7 +1821,7 @@ def _mt_or_call(sys_p, user_t, temp=0.3):
                       headers={"Content-Type": "application/json",
                                "Authorization": "Bearer " + _MT_OR_KEY},
                       method="POST")
-    with _ur.urlopen(req, timeout=120) as r:
+    with _ur.urlopen(req, timeout=None) as r:   # NO TIMER (2026-09-22) — model reply
         data = json.loads(r.read().decode("utf-8"))
     out = (data.get("choices") or [{}])[0].get("message", {}).get("content", "").strip()
     if not out:
@@ -1354,11 +1842,31 @@ def _mt_brain(sys_p, user_t, temp):
         return _mt_or_call(sys_p, user_t, temp)
 
 def _mt_clean(t):
-    sys_p = ("You clean up dictated text. Fix capitalization, punctuation and "
-             "sentence breaks. Keep every original word including names and "
-             "signatures. Never rewrite, never add, never remove. Return ONLY "
-             "the cleaned text.")
-    return _mt_decaps(_mt_brain(sys_p, t, temp=0.1))
+    """ARTICULATE (operator order 2026-10-16): grammar-and-spelling cleanup is
+    a RULES job, not a model job — the same thing Windows has done for years.
+    No model, no Ollama, no download: instant, offline, works on any machine.
+    The model belongs to reimagine (rewording), never to articulate (cleanup).
+    Rules: de-SHOUT all caps, sentence-start capitals, I capitalization,
+    space collapse, spacing after punctuation."""
+    # 1. De-shout: if the text is mostly caps, lowercase it and re-capitalize
+    #    sentence starts (keeps known acronyms via _mt_decaps).
+    t = _mt_decaps(t)
+    # 2. Sentence-start capitals (after . ! ? or newline or start).
+    t = re.sub(r"(^|[.!?]\s+|\n)([a-z])", lambda m: m.group(1) + m.group(2).upper(), t)
+    # 3. Standalone i → I.
+    t = re.sub(r"\bi\b", "I", t)
+    # 4. Collapse runs of spaces/tabs (keep newlines — paragraph structure).
+    t = re.sub(r"[ \t]{2,}", " ", t)
+    # 5. One space after , ; : (never before).
+    t = re.sub(r"\s+([,;:])", r"\1", t)
+    t = re.sub(r"([,;:])(?=[A-Za-z])", r"\1 ", t)
+    # 6. Space before . ! ? only when it's clearly a sentence end (word before).
+    t = re.sub(r"(\w)\s+([.!?])(?=\s|$)", r"\1\2", t)
+    # 7. Trim each line; drop trailing blank runs.
+    lines = [ln.strip() for ln in t.split("\n")]
+    t = "\n".join(lines)
+    t = re.sub(r"\n{3,}", "\n\n", t)
+    return t.strip()
 
 def _mt_brand():
     _root = Path(__file__).resolve().parent
@@ -1371,35 +1879,117 @@ def _mt_brand():
             pass
     return {}
 
+# ── PROMOTE CARD COLORS (operator 2026-10-18): three choosable colors via
+# the extension popup — card navy (bg), action orange, rust accent. Ink and
+# muted are LAW and are never recolored. Overlay file keeps brand.json pure;
+# missing file = law colors. The popup POSTs here, promote renders it. ──
+_PC_COLORS_PATH = None  # resolved lazily against the app folder
+_PC_LAW = {"bg": "#0f2340", "action": "#d97834", "rust": "#b8401e"}
+
+def _promote_colors_path():
+    global _PC_COLORS_PATH
+    if _PC_COLORS_PATH is None:
+        _PC_COLORS_PATH = Path(__file__).resolve().parent / "morphytrek_data" / "promote_colors.json"
+    return _PC_COLORS_PATH
+
+def _hex_ok(v, fallback):
+    try:
+        s = str(v).strip().lower()
+        if not s.startswith("#"): s = "#" + s
+        if re.fullmatch(r"#(?:[0-9a-f]{3}|[0-9a-f]{6})", s):
+            return s
+    except Exception:
+        pass
+    return fallback
+
+def _promote_colors():
+    out = dict(_PC_LAW)
+    try:
+        p = _promote_colors_path()
+        if p.exists():
+            d = json.loads(p.read_text(encoding="utf-8"))
+            out["bg"] = _hex_ok(d.get("bg"), out["bg"])
+            out["action"] = _hex_ok(d.get("action"), out["action"])
+            out["rust"] = _hex_ok(d.get("rust"), out["rust"])
+    except Exception:
+        pass
+    return out
+
+def _set_promote_colors(bg, action, rust):
+    cur = _promote_colors()
+    c = {"bg": _hex_ok(bg, cur["bg"]),
+         "action": _hex_ok(action, cur["action"]),
+         "rust": _hex_ok(rust, cur["rust"])}
+    try:
+        _promote_colors_path().parent.mkdir(parents=True, exist_ok=True)
+        _promote_colors_path().write_text(json.dumps(c), encoding="utf-8")
+    except Exception:
+        pass
+    return c
+
 def _mt_promote(t):
     b = _mt_brand()
     pal = b.get("palette", {})
+    pc = _promote_colors()  # PROMOTE CARD COLORS (operator 2026-10-18): popup overlay wins
     name = b.get("name", "MorPHYes Mastery")
     site = b.get("website", "www.morphyesmastery.com")
     cta = b.get("footer_cta", "Get your MorPHYes masterpiece today")
+    furl = b.get("footer_url", "https://" + site)
+    fphone = b.get("footer_phone", "")  # BRAND (operator 2026-10-18): empty means no phone in footer
 
-    # AI pass: polish the words so they sell. Keep meaning, keep voice, make it shine.
-    sys_p = (
-        "You are a world-class copywriter for MorPHYes Mastery. "
-        "Take the user's rough drafted text and make it polished, warm, and persuasive "
-        "so it sells. Keep their voice, their meaning, and every fact. "
-        "Fix grammar, flow, and impact. Do not add fake claims. "
-        "Return ONLY the polished body text, no subject line, no signature, no commentary."
-    )
-    polished = _mt_brain(sys_p, t, temp=0.5)
+    # PROMOTE (operator order 2026-10-01, flat): promote renders the agreed
+    # HTML conversion and that is ALL it does. The copywriter pass that rewrote
+    # the words toward selling is GONE — that was the "windows style" output.
+    # The words belong to articulate (cleanup) and reimagine (attractive
+    # language), never to promote.
+    polished = t
 
     paras = [pp.strip() for pp in polished.split("\n") if pp.strip()]
-    md = "\n\n".join(paras) + "\n\n---\n**[" + cta + "](https://" + site + ")** \u2014 " + name
+    # BRAND PHONE (operator 2026-10-18): # 587 849 5094 — linked tel: so a
+    # click dials on mobile; absent from footer when brand carries no number.
+    if fphone:
+        digits = "".join(ch for ch in fphone if ch.isdigit())
+        pretty = digits if len(digits) != 10 else digits[0:3] + " " + digits[3:6] + " " + digits[6:]
+        phone_md = ("  \n# " + pretty)
+        phone_html = (' &nbsp;•&nbsp; <a href="tel:+' + digits + '" style="color:'
+                      + pc["rust"] + ';font-weight:700;text-decoration:none;"># '
+                      + pretty + '</a>')
+    else:
+        phone_md = ""
+        phone_html = ""
+    md = "\n\n".join(paras) + "\n\n---\n**[" + cta + "](" + furl + ")** — " + name + phone_md
+    # PROMOTE CARD COLORS (operator 2026-10-18): bg/action/rust from the popup
+    # overlay; ink #ece6d8 and muted #8a92a6 are LAW and never recolored.
     html = ('<div style="font-family:Segoe UI,Arial,sans-serif;max-width:640px;margin:0 auto;'
             'padding:20px 24px;border:1px solid rgba(0,0,0,0.08);border-radius:10px;'
-            'background:' + pal.get("bg", "#0f2340") + ';color:' + pal.get("ink", "#ece6d8") + '">'
+            'background:' + pc["bg"] + ';color:#ece6d8">'
             + "".join('<p style="margin:0 0 12px 0;line-height:1.6;font-size:15px;">' + pp + "</p>" for pp in paras)
-            + '<hr style="border:none;border-top:1px solid rgba(255,255,255,0.15);margin:18px 0;">'
-            + '<p style="margin:0;font-size:14px;"><a href="https://' + site + '" style="color:'
-            + pal.get("orange", "#d97834") + ';font-weight:700;text-decoration:none;text-transform:uppercase;'
-            'letter-spacing:0.5px;">' + cta + '</a> &nbsp;\u2022&nbsp; <span style="color:'
-            + pal.get("mut", "#8a92a6") + ';">' + name + "</span></p></div>")
+            + '<hr style="border:none;border-top:1px solid ' + pc["rust"] + ';margin:18px 0;">'
+            + '<p style="margin:0;font-size:14px;"><a href="' + furl + '" style="color:'
+            + pc["action"] + ';font-weight:700;text-decoration:none;text-transform:uppercase;'
+            'letter-spacing:0.5px;">' + cta + '</a> &nbsp;•&nbsp; <span style="color:#8a92a6;">' + name + "</span>" + phone_html + "</p></div>")
     return md, html
+
+def _mt_reimagine(t):
+    """REIMAGINE WITH MORPHYTREK (operator order 2026-10-01, Trent's design).
+    The model sees the information dump and conveys it precisely into
+    attractive language. Every fact kept, his voice kept. NO markdown headers,
+    NO bullet points — plain attractive prose, because most emails have no
+    headers. Leans toward the content-brief-generator style, far away from
+    promote's selling. STATELESS: every call is fresh, so the user can fire it
+    as many times as they want if the first result is terrible."""
+    sys_p = (
+        "You are a world-class writer. The user gives you a rough information "
+        "dump — their thoughts, half-ordered. Reimagine it: convey precisely "
+        "the same information in attractive, natural language. Keep EVERY fact, "
+        "every number, every name, and the writer's own voice. Do not add "
+        "claims, do not invent, do not sell. NO markdown headers, NO bullet "
+        "points, NO lists — plain flowing prose, the way a person writes an "
+        "email. Fix grammar, punctuation, and capitalization. "
+        "Return ONLY the reimagined text, no subject line, no signature, no commentary."
+    )
+    return _mt_brain(sys_p, t, temp=0.6)
+
 def extension_server_loop():
     """Tiny HTTP server for Chrome extension Read Aloud. Runs in a thread."""
     try:
@@ -1422,20 +2012,31 @@ def main():
     log("Spacebar = mute/unmute microphone")
     log("=" * 50)
 
-    # Purge stale narration files (older than 2 minutes) on startup
+    # Stale-file cleanup (2026-09-21 — CHANGED, operator law: a reply he cannot
+    # hear DID NOT HAPPEN). The old 2-minute purge was DELETING real narration
+    # files that were still waiting behind a long job or a refresh — words died
+    # silently and the operator heard nothing. Now: 30 minutes, and every purge
+    # is LOGGED with its text so nothing can ever vanish without a trace.
     import time as _time
     _now = _time.time()
     _purged = 0
     for d in _queue_dirs():
         for f in d.glob("*.json"):
             try:
-                if _now - f.stat().st_mtime > 120:
+                if f.name.lower() == "folder.md":
+                    continue
+                if _now - f.stat().st_mtime > 1800:
+                    try:
+                        _snip = f.read_text(encoding="utf-8-sig", errors="ignore")[:80].replace("\n", " ")
+                    except Exception:
+                        _snip = "(unreadable)"
                     f.unlink()
                     _purged += 1
+                    log(f"Purged stale (>30 min) narration file {f.name}: {_snip}")
             except Exception:
                 pass
     if _purged:
-        log(f"Startup cleanup: purged {_purged} stale narration file(s) older than 2 min")
+        log(f"Startup cleanup: purged {_purged} stale narration file(s) older than 30 min")
 
     # Init Whisper (the ear)
     init_whisper()

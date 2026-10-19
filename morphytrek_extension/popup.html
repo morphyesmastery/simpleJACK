@@ -32,6 +32,66 @@
     <button id="readPage">📄 Read page</button>
   </div>
 
+  <div class="toggle" style="border-top:1px solid rgba(255,255,255,0.08)">
+    <span>🌐 Translate</span>
+    <button id="transBtn">Off</button>
+  </div>
+  <div class="toggle">
+    <span>Read aloud in</span>
+    <select id="langSel" style="background:#1a1d28;color:#e6f0ff;border:1px solid rgba(255,255,255,0.14);border-radius:6px;padding:5px 8px;font-size:0.8rem;cursor:pointer;">
+      <option value="en">English</option>
+      <option value="zh-CN">Chinese</option>
+      <option value="es">Spanish</option>
+      <option value="fr">French</option>
+      <option value="de">German</option>
+      <option value="it">Italian</option>
+      <option value="pt">Portuguese</option>
+      <option value="ru">Russian</option>
+      <option value="ar">Arabic</option>
+      <option value="hi">Hindi</option>
+      <option value="ja">Japanese</option>
+      <option value="ko">Korean</option>
+      <option value="tr">Turkish</option>
+      <option value="pl">Polish</option>
+      <option value="uk">Ukrainian</option>
+      <option value="vi">Vietnamese</option>
+      <option value="fa">Persian</option>
+      <option value="tl">Filipino</option>
+    </select>
+  </div>
+  <div class="status" id="transStatus">Off — reads the original language</div>
+
+  <div class="toggle" style="border-top:1px solid rgba(255,255,255,0.08);margin-top:10px">
+    <span style="color:#d97834;font-weight:600">PROMOTE CARD COLORS</span>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">
+    <label style="display:flex;align-items:center;justify-content:space-between;font-size:0.78rem">
+      <span>Card background (navy)</span><input type="color" id="pcBg" style="width:44px;height:26px;border:none;background:none;cursor:pointer">
+    </label>
+    <label style="display:flex;align-items:center;justify-content:space-between;font-size:0.78rem">
+      <span>Action link (orange)</span><input type="color" id="pcAction" style="width:44px;height:26px;border:none;background:none;cursor:pointer">
+    </label>
+    <label style="display:flex;align-items:center;justify-content:space-between;font-size:0.78rem">
+      <span>Rust accent (phone + rule)</span><input type="color" id="pcRust" style="width:44px;height:26px;border:none;background:none;cursor:pointer">
+    </label>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <button id="pcSave" style="flex:1;background:#d97834;color:#0a0b0f;border:none;border-radius:6px;padding:8px;cursor:pointer;font-weight:700;font-size:0.8rem">SAVE COLORS</button>
+    <button id="pcReset" style="background:#1a1d28;color:#8a92a6;border:1px solid rgba(255,255,255,0.14);border-radius:6px;padding:8px;cursor:pointer;font-size:0.8rem">Brand law</button>
+  </div>
+  <div class="status" id="pcStatus">Colors apply to every promote card, on this machine, instantly.</div>
+
+  <div class="toggle" style="border-top:1px solid rgba(255,255,255,0.08);margin-top:10px">
+    <span style="color:#d97834;font-weight:600">WHAT THESE DO</span>
+  </div>
+  <div class="status" style="line-height:1.5">
+    <b>Read selection / page</b> — speaks the words through the local voice.<br>
+    <b>Translate</b> — reads the writing in the language chosen above.<br>
+    <b>Articulate</b> — cleans up your draft: spelling, capitals, spacing. Your words, tidied.<br>
+    <b>Promote</b> — turns the selected words into a branded card with your footer. Your words verbatim — never rewritten.<br>
+    <b>Reimagine</b> — the model rewrites for attraction. Upgrade door.
+  </div>
+
 <script>
   const btn = document.getElementById("toggleBtn");
   const status = document.getElementById("status");
@@ -102,6 +162,75 @@
       });
     });
   });
+
+  // ── TRANSLATOR ROW — own translator, language dropdown ──────
+  const transBtn = document.getElementById("transBtn");
+  const langSel = document.getElementById("langSel");
+  const transStatus = document.getElementById("transStatus");
+
+  function transUI(on) {
+    transBtn.textContent = on ? "On" : "Off";
+    const langName = langSel.options[langSel.selectedIndex].text;
+    transStatus.textContent = on
+      ? "🌐 On — reads aloud in " + langName + " (free lane, no key)"
+      : "Off — reads the original language";
+  }
+
+  chrome.storage.local.get(["morphyeo_translate", "morphyeo_lang"], (r) => {
+    langSel.value = r.morphyeo_lang || "en";
+    transUI(!!r.morphyeo_translate);
+  });
+
+  transBtn.addEventListener("click", () => {
+    chrome.storage.local.get(["morphyeo_translate"], (r) => {
+      const next = !r.morphyeo_translate;
+      chrome.storage.local.set({ morphyeo_translate: next });
+      transUI(next);
+    });
+  });
+
+  langSel.addEventListener("change", () => {
+    chrome.storage.local.set({ morphyeo_lang: langSel.value });
+    chrome.storage.local.get(["morphyeo_translate"], (r) => transUI(!!r.morphyeo_translate));
+  });
+
+  // ── PROMOTE CARD COLORS — three choosable colors; ink/muted are LAW ──
+  // Defaults = operator brand law: navy #0f2340, orange #d97834, rust #b8401e.
+  // Saved to chrome.storage.local AND pushed to the bridge (POST
+  // /api/brand_colors) so _mt_promote renders the card with them instantly.
+  // "Brand law" button returns to the law colors.
+  const pcBg = document.getElementById("pcBg");
+  const pcAction = document.getElementById("pcAction");
+  const pcRust = document.getElementById("pcRust");
+  const pcStatus = document.getElementById("pcStatus");
+  const PC_LAW = { bg: "#0f2340", action: "#d97834", rust: "#b8401e" };
+  const pcEls = { bg: pcBg, action: pcAction, rust: pcRust };
+
+  function pcUI(c) { pcEls.bg.value = c.bg; pcEls.action.value = c.action; pcEls.rust.value = c.rust; }
+
+  // Load: bridge is truth if alive (it serves what promote currently uses);
+  // storage is the offline fallback; law is the floor.
+  fetch("http://localhost:8792/api/brand_colors")
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(c => pcUI({ bg: c.bg || PC_LAW.bg, action: c.action || PC_LAW.action, rust: c.rust || PC_LAW.rust }))
+    .catch(() => chrome.storage.local.get(["promote_bg", "promote_action", "promote_rust"], (s) =>
+      pcUI({ bg: s.promote_bg || PC_LAW.bg, action: s.promote_action || PC_LAW.action, rust: s.promote_rust || PC_LAW.rust })));
+
+  function pcSave() {
+    const c = { bg: pcEls.bg.value, action: pcEls.action.value, rust: pcEls.rust.value };
+    chrome.storage.local.set({ promote_bg: c.bg, promote_action: c.action, promote_rust: c.rust });
+    fetch("http://localhost:8792/api/brand_colors", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(c)
+    }).then(r => r.json()).then(j => {
+      pcStatus.textContent = j.success
+        ? "Saved — every promote card now uses these colors."
+        : "Saved locally — bridge will pick them up on next start.";
+    }).catch(() => { pcStatus.textContent = "Saved locally — bridge offline, colors apply on next start."; });
+  }
+
+  document.getElementById("pcSave").addEventListener("click", pcSave);
+  document.getElementById("pcReset").addEventListener("click", () => { pcUI(PC_LAW); pcSave(); });
 </script>
 </body>
 </html>
