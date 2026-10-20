@@ -286,6 +286,7 @@ console.log("[morPHYtrek] Content script loaded - narration queue via port 8792"
 // â•â•â• ARTICULATE / PROMOTE â€” offline cleanup via morPHYtrek bridge â•â•â•
 const MT_ARTICULATE_URL = "http://localhost:8792/api/articulate";
 const MT_PROMOTE_URL = "http://localhost:8792/api/promote";
+const MT_REIMAGINE_URL = "http://localhost:8792/api/reimagine";
 let _mtUndo = null;
 
 function _mtEditableFromSelection() {
@@ -394,6 +395,7 @@ async function _mtRun(mode) {
     _mtToast("Nothing to " + (mode === "articulate" ? "articulate" : "promote"));
     return;
   }
+  if (mode === "reimagine") { await _mtReimagine(ed, text); return; }
   _mtToast(mode === "articulate" ? "Articulating..." : "Promoting...");
   // PROMOTE FIX (operator order 2026-10-18, THE ROOT CAUSE): the old line
   // force-translated EVERY selection to English before promote — English
@@ -446,9 +448,28 @@ function _mtBridgeLight(onBackOnline) {
   setTimeout(() => d.remove(), 12000);
 }
 
+// REIMAGINE — Tina's lane (operator order 2026-10-18): Tina ships with
+// the tool and does the reimagine work. Model: josie-2b-tools via the
+// local Ollama engine. The bridge does the model call; content just
+// posts text and swaps the result into the field.
+async function _mtReimagine(ed, text) {
+  _mtToast("Reimagining...");
+  try {
+    const data = await _mtPost(MT_REIMAGINE_URL, { text: text, tone: "clear" });
+    if (!data.success) throw new Error(data.error || "reimagine failed");
+    const out = data.text || "";
+    if (!out) throw new Error("empty response");
+    const done = _mtReplaceSelection(ed, out);
+    _mtToast(done ? "Reimagined - Ctrl+Z to revert" : "Could not replace text in this field");
+  } catch (e) {
+    _mtToast("Reimagine: " + (e.message || "failed"));
+  }
+}
+
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === "ARTICULATE_SELECTION") _mtRun("articulate");
   if (msg.type === "PROMOTE_FIELD") _mtRun("promote");
+  if (msg.type === "REIMAGINE_SELECTION") _mtRun("reimagine");
   if (msg.type === "TRANSLATE_READ") _mtTranslateRead(msg.text);
 });
 

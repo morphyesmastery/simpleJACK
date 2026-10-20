@@ -1730,13 +1730,19 @@ class _ExtHandler(BaseHTTPRequestHandler):
                     md, html = _mt_promote(src)
                     self._send_json({"success": True, "md": md, "html": html})
                 elif path == "/api/reimagine":
-                    # REIMAGINE (operator order 2026-10-16): the one feature
-                    # that truly needs a language model. In the sale build it
-                    # is the upgrade door — small notification, no hang, no
-                    # silent fallback, no model shipped.
-                    self._send_json({"success": False,
-                                     "error": "requires upgrade",
-                                     "upgrade": True}, 200)
+                    # REIMAGINE — TINA (operator order 2026-10-18): Tina ships
+                    # with the tool. Josie via local Ollama does the work.
+                    src = raw_text.strip()
+                    if not src or not re.search(r"[A-Za-z0-9]", src):
+                        self._send_json({"success": False,
+                                         "error": "no text reached reimagine — select the words first"}, 400)
+                        return
+                    try:
+                        out = _tina_reimagine(src)
+                        self._send_json({"success": True, "text": out})
+                    except Exception as te:
+                        self._send_json({"success": False,
+                                         "error": "Tina unavailable: " + str(te)[:120]}, 503)
                 else:
                     cleaned = _mt_clean(raw_text.strip())
                     if path == "/api/articulate":
@@ -1840,6 +1846,27 @@ def _mt_brain(sys_p, user_t, temp):
         return _mt_ol_call(sys_p, user_t, temp)
     except Exception:
         return _mt_or_call(sys_p, user_t, temp)
+
+# REIMAGINE — TINA'S LANE (operator order 2026-10-18): Tina ships with the
+# tool and does the reimagine work. Josie via the local Ollama engine.
+# Offline, sovereign, no cloud, no keys. Returns the reimagined text only.
+def _tina_reimagine(text):
+    sys_p = ("You are Tina. Rewrite the user's text so it is clear, confident, "
+             "and easy to read. Keep their meaning exactly. Keep it the same "
+             "language. Reply with ONLY the rewritten text and nothing else. "
+             "Example input: i dont like this at all\n"
+             "Example output: I am not happy with this.\n"
+             "No preamble. No quotes. No explanation. Never describe the task.")
+    out = _mt_ol_call(sys_p, text, 0.6)
+    out = out.strip()
+    # TINA CLEANUP: small models sometimes add preamble despite the example.
+    # If the reply contains a quoted rewrite, keep only what is inside the
+    # quotes. Strip markdown bold and stray headings either way.
+    q = re.search(u'[\u201c"]([^\u201d"]{2,})[\u201d"]', out)
+    if q and len(q.group(1)) > len(text) * 0.3:
+        out = q.group(1)
+    out = out.replace("**", "").replace(u"\u201c", '"').replace(u"\u201d", '"').strip()
+    return out
 
 def _mt_clean(t):
     """ARTICULATE (operator order 2026-10-16): grammar-and-spelling cleanup is
